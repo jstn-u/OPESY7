@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <cstdlib>
 
@@ -25,9 +26,12 @@ void headerText () {
         "\n";
         
         while(true) {
+            std:: string input;
+            std:: cout<< "Enter a command: ";
+            std::getline(std::cin, input); 
+            std::istringstream iss(input);
             std:: string command;
-            std::cout<< "Enter a command: ";
-            std:: cin >> command;
+            iss >> command;
             
             /* Use this once actual functions are implemented
             if (command == "initialize"){
