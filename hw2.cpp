@@ -12,17 +12,17 @@ void headerText () {
  | |____ ____) | |__| | |    | |____ ____) |  | |   
   \_____|_____/ \____/|_|    |______|_____/   |_|                             
     )";
-        std::cout<< "\n";
-        std::cout<< "Hello, Welcome to the CSOPESY command line emulator!\n";
-        std::cout<< "Type:\n";
-        std::cout<< "-'initialize'\n";
-        std::cout<< "-'screen'\n";
-        std::cout<< "-'scheduler-test'\n";
-        std::cout<< "-'scheduler-stop'\n";
-        std::cout<< "-'report-util'\n";
-        std::cout<< "-'clear' to clear the screen\n";
-        std::cout<< "-'exit' to quit\n";
-        std::cout<< "\n";
+        std::cout<< "\n"
+        "Hello, Welcome to the CSOPESY command line emulator!\n"
+        "Type:\n"
+        "-'initialize'\n"
+        "-'screen'\n"
+        "-'scheduler-test'\n"
+        "-'scheduler-stop'\n"
+        "-'report-util'\n"
+        "-'clear' to clear the screen\n"
+        "-'exit' to quit\n"
+        "\n";
         
         while(true) {
             std:: string command;
