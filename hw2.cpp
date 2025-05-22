@@ -37,9 +37,6 @@ void headerText () {
             if (command == "initialize"){
                 std::cout << "initialize command recognized. Doing something.\n";
             }
-            else if (command == "screen") {
-                std::cout << "screen command recognized. Doing something.\n";
-            }
             else if (command == "scheduler-test") {
                 std::cout << "scheduler-test command recognized. Doing something.\n";
             }
@@ -51,13 +48,31 @@ void headerText () {
             }
             */
 
-           if (
+            if (
             command == "initialize" || 
-            command == "screen" || 
             command == "scheduler-test" || 
             command == "scheduler-stop" || 
             command == "report-util") {
                 std::cout << command + " command recognized. Doing something.\n";
+            }
+            else if (command == "screen") {
+                std::string option;
+                iss >> option;  // Read the second word after "screen"
+                
+                if (option == "-r") {
+                    std::cout << "Reattaching to a screen session...\n";
+                    // Insert reattach logic here
+                } 
+                else if (option == "-s") {
+                    std::string sessionName;
+                    iss >> sessionName; // optionally read third word
+                    if (!sessionName.empty()) {
+                        std::cout << sessionName;
+                    }
+                }
+                else {
+                    std::cout << "Unknown screen option: " << option << "\n";
+                }
             }
             else if (command == "clear") {
                 std:: system("CLS");
