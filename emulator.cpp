@@ -12,6 +12,7 @@ struct ScreenSession {
     int currentLine;
     int totalLines;
     std::string timestamp;
+    std::string status;
 };
 
 std::map<std::string, ScreenSession> sessions;
@@ -50,9 +51,6 @@ void drawScreen(const ScreenSession& session) {
     std::system("CLS");
 }
 
-void drawProcess(){
-}
-
 void headerText () {
     while(true) {
         std::cout<< R"(
@@ -69,6 +67,8 @@ void headerText () {
         "-'initialize'\n"
         "-'screen -s <name>' to create a session\n"
         "-'screen -r <name>' to resume a session\n"
+        "-'screen -ls' to view all attached or detached sessions\n"
+        "-'screen -d <name>' to detach a running session\n"
         "-'scheduler-test'\n"
         "-'scheduler-stop'\n"
         "-'report-util'\n"
@@ -104,7 +104,8 @@ void headerText () {
                                 sessionName,
                                 1 + rand() % 10, // mock current line
                                 10 + rand() % 100, // mock total lines
-                                getCurrentTimestamp()
+                                getCurrentTimestamp(),
+                                "Attached"
                             };
                             sessions[sessionName] = newSession;
                             std::system("CLS");
@@ -115,8 +116,14 @@ void headerText () {
                             std::cout << "Session already exists.\n";
                         }
                     } else if (option == "-r") {
-                        std::system("CLS");
                         if (sessions.find(sessionName) != sessions.end()) {
+                            std::system("CLS");
+                            ScreenSession& current = sessions[sessionName];
+                            
+                            if (current.status == "Detached"){
+                                current.status = "Attached";
+                            }
+
                             drawScreen(sessions[sessionName]);
                             headerText();
                         } else {
@@ -124,19 +131,35 @@ void headerText () {
                         }
                     }
                 } else if(option == "-ls"){
-                    std::cout << "There are [" << sessions.size() << "] sessions" << std::endl;
+                    std::cout << "There are [" << sessions.size() << "] sessions\n";
                     std::cout << "Running Sessions:\n";
                     std::cout << std::left << std::setw(20) << "[ Session Name ]"
-                            << std::right << std::setw(30) << "[ Date Created ]\n";
+                            << std::right << std::setw(30) << "[ Date Created ]"
+                            << std::right << std::setw(30) << "[ Status ]\n";
 
                     for (const auto& pair : sessions) {
                         const std::string& key = pair.first;
                         const ScreenSession& session = pair.second;
 
                         std::cout << std::left << std::setw(20) << session.name
-                                << std::right << std::setw(30) << session.timestamp << '\n';
+                                << std::right << std::setw(30) << session.timestamp 
+                                << std::right << std::setw(27) << session.status << '\n';
                     }
                     std::cout << "\n";
+                } else if (option == "-d") {
+                    if (sessions.find(sessionName) != sessions.end()) {
+                        ScreenSession& current = sessions[sessionName];
+                        if (current.status == "Detached") {
+                            std::cout << "Error: Session \"" << current.name << "\" is already detached.\n";
+                        } else if (current.status == "Attached") {
+                            current.status = "Detached";
+                            std::cout << current.name << " has been detached successfully.\n";
+                        } else {
+                            std::cout << "Error: Unknown session status.\n";
+                        }
+                    } else {
+                        std::cout << "Error: Session \"" << sessionName << "\" does not exist.\n";
+                    }
                 }
                 else {
                     std::cout << "Invalid screen command format.\n";
