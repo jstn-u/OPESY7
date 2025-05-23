@@ -30,7 +30,6 @@ std::string getCurrentTimestamp() {
 }
 
 void drawScreen(const ScreenSession& session) {
-    std::system("CLS");
     std::cout << "\n=== Attached to Screen: " << session.name << " ===\n";
     std::cout << "Process Name         : " << session.name << "\n";
     std::cout << "Instruction Line     : " << session.currentLine << " / " << session.totalLines << "\n";
@@ -56,7 +55,6 @@ void drawProcess(){
 
 void headerText () {
     while(true) {
-        std::system("CLS");
         std::cout<< R"(
    _____  _____  ____  _____  ______  _______     __
   / ____|/ ____|/ __ \|  __ \|  ____|/ ____\ \   / /
@@ -109,13 +107,15 @@ void headerText () {
                                 getCurrentTimestamp()
                             };
                             sessions[sessionName] = newSession;
-                            std::cout << "Session '" << sessionName << "' created.\n";
+                            std::system("CLS");
+                            std::cout << "Session '" << sessionName << "' created.\n\n";
+                            drawScreen(sessions[sessionName]);
+                            headerText();
                         } else {
                             std::cout << "Session already exists.\n";
                         }
-                        drawScreen(sessions[sessionName]);
-                        headerText();
                     } else if (option == "-r") {
+                        std::system("CLS");
                         if (sessions.find(sessionName) != sessions.end()) {
                             drawScreen(sessions[sessionName]);
                             headerText();
@@ -136,6 +136,7 @@ void headerText () {
                         std::cout << std::left << std::setw(20) << session.name
                                 << std::right << std::setw(30) << session.timestamp << '\n';
                     }
+                    std::cout << "\n";
                 }
                 else {
                     std::cout << "Invalid screen command format.\n";
@@ -157,6 +158,7 @@ void headerText () {
 }
 
 int main() {
+    std::system("CLS");
     headerText();
     return 0;
 }
