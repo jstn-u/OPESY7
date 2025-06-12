@@ -5,17 +5,9 @@
 #include <ctime>
 #include <iomanip>
 #include <cstdlib>
+#include "Process.h"
 
-// Struct to store session information
-struct ScreenSession {
-    std::string name;
-    int currentLine;
-    int totalLines;
-    std::string timestamp;
-    std::string status;
-};
-
-std::map<std::string, ScreenSession> sessions;
+std::map<std::string, Process> sessions;
 
 std::string getCurrentTimestamp() {
     std::time_t now = std::time(nullptr);
@@ -30,22 +22,25 @@ std::string getCurrentTimestamp() {
     return oss.str();
 }
 
-void drawScreen(const ScreenSession& session) {
-    std::cout << "\n=== Attached to Screen: " << session.name << " ===\n";
-    std::cout << "Process Name         : " << session.name << "\n";
-    std::cout << "Instruction Line     : " << session.currentLine << " / " << session.totalLines << "\n";
-    std::cout << "Created At           : " << session.timestamp << "\n";
+void drawScreen(const Process& session) {
+    std::cout << "\n=== Attached to Screen: " << session.getName() << " ===\n";
+    std::cout << "Process Name         : " << session.getName() << "\n";
+    std::cout << "Instruction Line     : " << session.getCurrentLine() << " / " << session.getTotalLines() << "\n";
+    std::cout << "Created At           : " << session.getTimestamp() << "\n";
     std::cout << "------------------------------------------\n";
     std::cout << "Type 'exit' to return to the main menu.\n\n";
 
     std::string input;
     while (true) {
-        std::cout << session.name << " > ";
+        std::cout << session.getName() << " > ";
         std::getline(std::cin, input);
         if (input == "exit") {
             break;
         } else {
-            std::cout << "[Session running] You typed: " << input << "\n";
+            if (input.substr(0, 6) == "print ") {
+                std::string toPrint = input.substr(6);
+                std::cout << toPrint << "\n";
+            }
         }
     }
     std::system("CLS");
@@ -100,7 +95,7 @@ void headerText () {
                 if ((option == "-r" || option == "-s") && !sessionName.empty()) {
                     if (option == "-s") {
                         if (sessions.find(sessionName) == sessions.end()) {
-                            ScreenSession newSession = {
+                            Process newSession = {
                                 sessionName,
                                 1 + rand() % 10, // mock current line
                                 10 + rand() % 100, // mock total lines
@@ -118,10 +113,10 @@ void headerText () {
                     } else if (option == "-r") {
                         if (sessions.find(sessionName) != sessions.end()) {
                             std::system("CLS");
-                            ScreenSession& current = sessions[sessionName];
+                            Process& current = sessions[sessionName];
                             
-                            if (current.status == "Detached"){
-                                current.status = "Attached";
+                            if (current.getStatus() == "Detached"){
+                                current.setStatus("Attached");
                             }
 
                             drawScreen(sessions[sessionName]);
@@ -139,21 +134,21 @@ void headerText () {
 
                     for (const auto& pair : sessions) {
                         const std::string& key = pair.first;
-                        const ScreenSession& session = pair.second;
+                        const Process& session = pair.second;
 
-                        std::cout << std::left << std::setw(20) << session.name
-                                << std::right << std::setw(30) << session.timestamp 
-                                << std::right << std::setw(27) << session.status << '\n';
+                        std::cout << std::left << std::setw(20) << session.getName()
+                                << std::right << std::setw(30) << session.getTimestamp() 
+                                << std::right << std::setw(27) << session.getStatus() << '\n';
                     }
                     std::cout << "\n";
                 } else if (option == "-d") {
                     if (sessions.find(sessionName) != sessions.end()) {
-                        ScreenSession& current = sessions[sessionName];
-                        if (current.status == "Detached") {
-                            std::cout << "Error: Session \"" << current.name << "\" is already detached.\n";
-                        } else if (current.status == "Attached") {
-                            current.status = "Detached";
-                            std::cout << current.name << " has been detached successfully.\n";
+                        Process& current = sessions[sessionName];
+                        if (current.getStatus() == "Detached") {
+                            std::cout << "Error: Session \"" << current.getName() << "\" is already detached.\n";
+                        } else if (current.getStatus() == "Attached") {
+                            current.setStatus("Detached");
+                            std::cout << current.getName() << " has been detached successfully.\n";
                         } else {
                             std::cout << "Error: Unknown session status.\n";
                         }
