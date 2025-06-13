@@ -2,16 +2,10 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "ICommand.h"
+#include <ctime>
+#include "PrintCommand.h"
 
 class Process{
-struct requirementFlags{
-    bool requiredFiles;
-    int numFiles;
-    bool requireMemory;
-    int memoryRequired;
-};
-
 enum ProcessState{
     READY,
     RUNNING,
@@ -20,14 +14,15 @@ enum ProcessState{
 };
 
 private:
-    std::vector<std::shared_ptr<ICommand>> commandList;
     int pid;
     std::string name;
     int currentLine;
     int totalLines;
     std::string timestamp;
     std::string status;
-    int cpuCoreID; // which core it is assigned to
+    int cpuId;
+    std::time_t startTime;
+    std::vector<PrintCommand*> commands;
 
 public:
     Process() = default;
@@ -42,10 +37,10 @@ public:
     int getTotalLines() const { return totalLines; }
     const std::string& getTimestamp() const { return timestamp; }
     const std::string& getStatus() const { return status; }
-    ICommand* getCommand(int idx) const { return commandList[idx].get(); }
-    void addCommand(ICommand* cmd);
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
-    void executeCurrentCommand();
+    void executeCurrentCommand(int cpuId, std::string processName, std::string time);
+    void create100PrintCommands();
+    std::time_t getStartTime() const;
 };

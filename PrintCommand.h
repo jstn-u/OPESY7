@@ -1,11 +1,14 @@
 #pragma once
 #include <string>
-#include "ICommand.h"
+#include <fstream>
+#include <iomanip>
+#include <ctime>
+#include <sstream>
 
-class PrintCommand : public ICommand{
+class PrintCommand{
     public:
         PrintCommand(std::string& toPrint);
-        void execute() override;
+        void execute(int cpuId, std::string processName, std::time_t endTime);
         std::string getToPrint() const;
     private:
         std::string toPrint;

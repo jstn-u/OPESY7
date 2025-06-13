@@ -8,7 +8,12 @@
 #include <thread>
 #include <vector>
 #include <fstream>
+#include <mutex>
 #include "Process.h"
+#include "PrintCommand.h"
+#include <queue>
+#include <condition_variable>
+#include <atomic>
 
 int num_cpu;
 std::string scheduler;
@@ -19,6 +24,11 @@ int max_ins;
 int delay_per_exec;
 
 std::map<std::string, Process> sessions;
+
+std::queue<Process*> readyQueue;
+std::mutex queueMutex;
+std::condition_variable cv;
+std::atomic<bool> schedulerRunning{true};
 
 std::string getCurrentTimestamp() {
     std::time_t now = std::time(nullptr);
@@ -86,9 +96,62 @@ void loadConfig(const std::string& filename) {
     std::cout << "\nConfiguration loaded from " << filename << "\n"; */
 }
 
-void sampleProcesses(){
-    Process p1;
+void executeThread(int id){
+    
 }
+
+void createSampleProcesses(){
+    std::vector<std::thread> sample_proc;
+    for (int i = 0; i < 10; ++i) {
+        std::string processName = "Process_" + std::to_string(i);
+        Process newProcess(processName, 0, 100, getCurrentTimestamp(), "Attached");
+        sessions[processName] = newProcess;
+    }
+    for (auto& t : sample_proc){
+        if (t.joinable()) t.join();
+    }
+}
+
+void createProcessesWithPrintCommands() {
+}
+
+/* void cpuWorker(int coreId) {
+    while (schedulerRunning) {
+        Process* proc = nullptr;
+        {
+            std::unique_lock<std::mutex> lock(queueMutex);
+            cv.wait(lock, [] { return !readyQueue.empty() || !schedulerRunning; });
+            if (!schedulerRunning) break;
+            if (!readyQueue.empty()) {
+                proc = readyQueue.front();
+                readyQueue.pop();
+            }
+        }
+        if (proc) {
+            for (auto* cmd : proc->commands) {
+                cmd->execute(coreId, proc->getName(), std::time(nullptr));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            delete proc;
+        }
+    }
+} */
+
+/* void startFCFSScheduler() {
+    std::vector<std::thread> cpuThreads;
+    for (int i = 0; i < (num_cpu > 0 ? num_cpu : 4); ++i) {
+        cpuThreads.emplace_back(cpuWorker, i);
+    }
+    // Wait for all processes to finish
+    while (true) {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        if (readyQueue.empty()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    schedulerRunning = false;
+    cv.notify_all();
+    for (auto& t : cpuThreads) t.join();
+} */
 
 void headerText () {
     while(true) {
@@ -222,6 +285,7 @@ void headerText () {
 
 int main() {
     std::system("CLS");
+    createSampleProcesses();
     loadConfig("config.txt");
     headerText();
     return 0;
