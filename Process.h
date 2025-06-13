@@ -33,7 +33,7 @@ public:
     Process() = default;
     Process(const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status)
     : name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {}
-    Process(int pid, std::string processName)
+    Process(int pid, std::string processName);
     ~Process() = default;
 
     int getPid() const { return pid; }

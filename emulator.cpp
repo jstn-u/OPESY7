@@ -87,7 +87,7 @@ void loadConfig(const std::string& filename) {
 }
 
 void sampleProcesses(){
-    Process p1();
+    Process p1;
 }
 
 void headerText () {
