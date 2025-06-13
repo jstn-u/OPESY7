@@ -15,6 +15,7 @@
 #include <queue>
 #include <condition_variable>
 #include <atomic>
+#include <algorithm>
 
 int num_cpu;
 std::string scheduler;
@@ -112,47 +113,6 @@ void createSampleProcesses(){
     }
 }
 
-void createProcessesWithPrintCommands() {
-}
-
-/* void cpuWorker(int coreId) {
-    while (schedulerRunning) {
-        Process* proc = nullptr;
-        {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            cv.wait(lock, [] { return !readyQueue.empty() || !schedulerRunning; });
-            if (!schedulerRunning) break;
-            if (!readyQueue.empty()) {
-                proc = readyQueue.front();
-                readyQueue.pop();
-            }
-        }
-        if (proc) {
-            for (auto* cmd : proc->commands) {
-                cmd->execute(coreId, proc->getName(), std::time(nullptr));
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-            delete proc;
-        }
-    }
-} */
-
-/* void startFCFSScheduler() {
-    std::vector<std::thread> cpuThreads;
-    for (int i = 0; i < (num_cpu > 0 ? num_cpu : 4); ++i) {
-        cpuThreads.emplace_back(cpuWorker, i);
-    }
-    // Wait for all processes to finish
-    while (true) {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        if (readyQueue.empty()) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    schedulerRunning = false;
-    cv.notify_all();
-    for (auto& t : cpuThreads) t.join();
-} */
-
 void headerText () {
     while(true) {
         std::cout<< R"(
@@ -236,6 +196,16 @@ void headerText () {
                 } else if(option == "-ls"){
                     auto running = fcfsScheduler->getRunningProcesses();
                     auto finished = fcfsScheduler->getFinishedProcesses();
+
+                    // Sort running processes by name
+                    std::sort(running.begin(), running.end(), [](Process* a, Process* b) {
+                        return a->getName() < b->getName();
+                    });
+
+                    // Sort finished processes by name
+                    std::sort(finished.begin(), finished.end(), [](Process* a, Process* b) {
+                        return a->getName() < b->getName();
+                    });
                     std::cout << "----------------------------------------\n";
                     std::cout << "Running processes:\n";
                     for (auto* proc : running) {
