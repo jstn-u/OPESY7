@@ -7,7 +7,7 @@
 
 class PrintCommand{
     public:
-        PrintCommand(std::string& toPrint);
+        PrintCommand(const std::string& toPrint);
         void execute(int cpuId, std::string processName, std::time_t endTime);
         std::string getToPrint() const;
     private:

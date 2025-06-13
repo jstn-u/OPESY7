@@ -25,9 +25,14 @@ private:
     std::vector<PrintCommand*> commands;
 
 public:
-    Process() = default;
-    Process(const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status)
-    : name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {}
+    void setCpuId(int id) { cpuId = id; }
+    int getCpuId() const { return cpuId; }
+    void addCommand(PrintCommand* cmd) { commands.push_back(cmd); }
+    void create100PrintCommands();
+    void executeCurrentCommand(int cpuId, std::string processName, std::string time);
+
+    Process();
+    Process(const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status);
     Process(int pid, std::string processName);
     ~Process() = default;
 
@@ -40,7 +45,5 @@ public:
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
-    void executeCurrentCommand(int cpuId, std::string processName, std::string time);
-    void create100PrintCommands();
     std::time_t getStartTime() const;
 };

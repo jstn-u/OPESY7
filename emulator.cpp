@@ -11,6 +11,7 @@
 #include <mutex>
 #include "Process.h"
 #include "PrintCommand.h"
+#include "FCFSScheduler.h"
 #include <queue>
 #include <condition_variable>
 #include <atomic>
@@ -22,6 +23,7 @@ int batch_process_freq;
 int min_ins;
 int max_ins;
 int delay_per_exec;
+FCFSScheduler* fcfsScheduler = nullptr;
 
 std::map<std::string, Process> sessions;
 
@@ -101,14 +103,12 @@ void executeThread(int id){
 }
 
 void createSampleProcesses(){
-    std::vector<std::thread> sample_proc;
     for (int i = 0; i < 10; ++i) {
-        std::string processName = "Process_" + std::to_string(i);
-        Process newProcess(processName, 0, 100, getCurrentTimestamp(), "Attached");
-        sessions[processName] = newProcess;
-    }
-    for (auto& t : sample_proc){
-        if (t.joinable()) t.join();
+        std::string processName = std::string("process") + (i < 9 ? "0" : "") + std::to_string(i+1);
+        Process* newProcess = new Process(processName, 0, 100, getCurrentTimestamp(), "Attached");
+        newProcess->create100PrintCommands();
+        sessions[processName] = *newProcess;
+        fcfsScheduler->addProcess(newProcess);
     }
 }
 
@@ -234,21 +234,23 @@ void headerText () {
                         }
                     }
                 } else if(option == "-ls"){
-                    std::cout << "There are [" << sessions.size() << "] sessions\n";
-                    std::cout << "Running Sessions:\n";
-                    std::cout << std::left << std::setw(20) << "[ Session Name ]"
-                            << std::right << std::setw(30) << "[ Date Created ]"
-                            << std::right << std::setw(30) << "[ Status ]\n";
-
-                    for (const auto& pair : sessions) {
-                        const std::string& key = pair.first;
-                        const Process& session = pair.second;
-
-                        std::cout << std::left << std::setw(20) << session.getName()
-                                << std::right << std::setw(30) << session.getTimestamp() 
-                                << std::right << std::setw(27) << session.getStatus() << '\n';
+                    auto running = fcfsScheduler->getRunningProcesses();
+                    auto finished = fcfsScheduler->getFinishedProcesses();
+                    std::cout << "----------------------------------------\n";
+                    std::cout << "Running processes:\n";
+                    for (auto* proc : running) {
+                        std::cout << std::left << std::setw(12) << proc->getName()
+                                << " (" << proc->getTimestamp() << ")"
+                                << "    Core: " << proc->getCpuId()
+                                << "    " << proc->getCurrentLine() << " / " << proc->getTotalLines() << "\n";
                     }
-                    std::cout << "\n";
+                    std::cout << "\nFinished processes:\n";
+                    for (auto* proc : finished) {
+                        std::cout << std::left << std::setw(12) << proc->getName()
+                                << " (" << proc->getTimestamp() << ")"
+                                << "    Finished    " << proc->getTotalLines() << " / " << proc->getTotalLines() << "\n";
+                    }
+                    std::cout << "----------------------------------------\n";
                 } else if (option == "-d") {
                     if (sessions.find(sessionName) != sessions.end()) {
                         Process& current = sessions[sessionName];
@@ -285,8 +287,12 @@ void headerText () {
 
 int main() {
     std::system("CLS");
+    fcfsScheduler = new FCFSScheduler(4); // 4 cores
     createSampleProcesses();
+    fcfsScheduler->start();
     loadConfig("config.txt");
     headerText();
+    fcfsScheduler->stop();
+    delete fcfsScheduler;
     return 0;
 }
