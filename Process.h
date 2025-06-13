@@ -33,6 +33,7 @@ public:
     Process() = default;
     Process(const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status)
     : name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {}
+    Process(int pid, std::string processName)
     ~Process() = default;
 
     int getPid() const { return pid; }
@@ -41,6 +42,8 @@ public:
     int getTotalLines() const { return totalLines; }
     const std::string& getTimestamp() const { return timestamp; }
     const std::string& getStatus() const { return status; }
+    ICommand* getCommand(int idx) const { return commandList[idx].get(); }
+    void addCommand(ICommand* cmd);
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();

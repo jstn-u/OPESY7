@@ -5,7 +5,18 @@
 #include <ctime>
 #include <iomanip>
 #include <cstdlib>
+#include <thread>
+#include <vector>
+#include <fstream>
 #include "Process.h"
+
+int num_cpu;
+std::string scheduler;
+int quantum_cycles;
+int batch_process_freq;
+int min_ins;
+int max_ins;
+int delay_per_exec;
 
 std::map<std::string, Process> sessions;
 
@@ -29,7 +40,9 @@ void drawScreen(const Process& session) {
     std::cout << "Created At           : " << session.getTimestamp() << "\n";
     std::cout << "------------------------------------------\n";
     std::cout << "Type 'exit' to return to the main menu.\n\n";
+}
 
+void executeScreen(const Process& session){
     std::string input;
     while (true) {
         std::cout << session.getName() << " > ";
@@ -37,13 +50,44 @@ void drawScreen(const Process& session) {
         if (input == "exit") {
             break;
         } else {
-            if (input.substr(0, 6) == "print ") {
-                std::string toPrint = input.substr(6);
+            if (input.substr(0, 6) == "PRINT(" && input.back() == ')') {
+                std::string toPrint = input.substr(6, input.length() - 7);
                 std::cout << toPrint << "\n";
             }
         }
     }
     std::system("CLS");
+}
+
+void loadConfig(const std::string& filename) {
+    std::ifstream infile(filename);
+    std::string line;
+    while (std::getline(infile, line)) {
+        std::istringstream iss(line);
+        std::string key;
+        if (iss >> key) {
+            if (key == "num-cpu") iss >> num_cpu;
+            else if (key == "scheduler") iss >> std::quoted(scheduler);
+            else if (key == "quantum-cycles") iss >> quantum_cycles;
+            else if (key == "batch-process-freq") iss >> batch_process_freq;
+            else if (key == "min-ins") iss >> min_ins;
+            else if (key == "max-ins") iss >> max_ins;
+            else if (key == "delay-per-exec") iss >> delay_per_exec;
+        }
+    }
+
+/*  std::cout << num_cpu;
+    std::cout << scheduler;
+    std::cout << quantum_cycles;
+    std::cout << batch_process_freq;
+    std::cout << min_ins;
+    std::cout << max_ins;
+    std::cout << delay_per_exec;
+    std::cout << "\nConfiguration loaded from " << filename << "\n"; */
+}
+
+void sampleProcesses(){
+    Process p1();
 }
 
 void headerText () {
@@ -106,6 +150,7 @@ void headerText () {
                             std::system("CLS");
                             std::cout << "Session '" << sessionName << "' created.\n\n";
                             drawScreen(sessions[sessionName]);
+                            executeScreen(sessions[sessionName]);
                             headerText();
                         } else {
                             std::cout << "Session already exists.\n";
@@ -118,8 +163,8 @@ void headerText () {
                             if (current.getStatus() == "Detached"){
                                 current.setStatus("Attached");
                             }
-
-                            drawScreen(sessions[sessionName]);
+                            drawScreen(current);
+                            executeScreen(current);
                             headerText();
                         } else {
                             std::cout << "No such session to resume.\n";
@@ -177,6 +222,7 @@ void headerText () {
 
 int main() {
     std::system("CLS");
+    loadConfig("config.txt");
     headerText();
     return 0;
 }

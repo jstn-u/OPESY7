@@ -10,3 +10,7 @@ PrintCommand::PrintCommand(std::string& toPrint) : ICommand(PRINT){
 void PrintCommand::execute(){
     std::cout << "Print Command: " << toPrint << "\n";
 }
+
+std::string PrintCommand::getToPrint() const {
+    return toPrint;
+}

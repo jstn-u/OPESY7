@@ -19,3 +19,7 @@ void Process::executeCurrentCommand(){
 void Process::moveCurrentLine(){
     this->currentLine++;
 }
+
+void Process::addCommand(ICommand* cmd) {
+    commandList.push_back(std::shared_ptr<ICommand>(cmd));
+}
