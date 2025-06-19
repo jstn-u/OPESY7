@@ -31,3 +31,5 @@ void Process::executeCurrentCommand(int cpuId, std::string processName, std::str
         commands[currentLine]->execute(cpuId, processName, std::time(nullptr));
     }
 }
+
+// setEndTime, getEndTime, getEndTimeString are now implemented inline in the header, so no additional implementation needed here.

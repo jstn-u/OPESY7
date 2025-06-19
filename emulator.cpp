@@ -26,7 +26,9 @@ int max_ins;
 int delay_per_exec;
 FCFSScheduler* fcfsScheduler = nullptr;
 
-std::map<std::string, Process> sessions;
+std::map<std::string, Process*> readyProcesses;
+std::map<std::string, Process*> runningProcessesMap;
+std::map<std::string, Process*> finishedProcessesMap;
 
 std::queue<Process*> readyQueue;
 std::mutex queueMutex;
@@ -46,19 +48,65 @@ std::string getCurrentTimestamp() {
     return oss.str();
 }
 
-void drawScreen(const Process& session) {
-    std::cout << "\n=== Attached to Screen: " << session.getName() << " ===\n";
-    std::cout << "Process Name         : " << session.getName() << "\n";
-    std::cout << "Instruction Line     : " << session.getCurrentLine() << " / " << session.getTotalLines() << "\n";
-    std::cout << "Created At           : " << session.getTimestamp() << "\n";
+void updateProcessMaps() {
+    // Clear and repopulate maps from scheduler's vectors
+    runningProcessesMap.clear();
+    finishedProcessesMap.clear();
+    readyProcesses.clear();
+    auto running = fcfsScheduler->getRunningProcesses();
+    auto finished = fcfsScheduler->getFinishedProcesses();
+    auto ready = fcfsScheduler->getReadyProcesses();
+    for (auto* proc : running) {
+        runningProcessesMap[proc->getName()] = proc;
+    }
+    for (auto* proc : finished) {
+        finishedProcessesMap[proc->getName()] = proc;
+    }
+    for (auto* proc : ready) {
+        readyProcesses[proc->getName()] = proc;
+    }
+}
+
+Process* findProcess(const std::string& processName) {
+    updateProcessMaps();
+    Process* proc = nullptr;
+    // Check running first, then finished
+    if (runningProcessesMap.count(processName)) {
+        proc = runningProcessesMap[processName];
+    } else if (finishedProcessesMap.count(processName)) {
+        proc = finishedProcessesMap[processName];
+    }else if(readyProcesses.count(processName)) {
+        proc = readyProcesses[processName];
+    }
+
+    if (!proc) {
+        return nullptr;
+    }
+    
+    return proc;
+}
+
+void drawScreen(const std::string& processName) {
+    Process* proc = findProcess(processName);
+    
+    if(!proc) {
+        std::cout << "Error: Process not found.\n";
+        return;
+    }
+
+    std::cout << "\n=== Attached to Screen: " << proc->getName() << " ===\n";
+    std::cout << "Process Name         : " << proc->getName() << "\n";
+    int currentLineDisplay = proc->getStatus() == "Finished" ? proc->getTotalLines() : proc->getCurrentLine();
+    std::cout << "Instruction Line     : " << currentLineDisplay << " / " << proc->getTotalLines() << "\n";
+    std::cout << "Created At           : " << proc->getTimestamp() << "\n";
     std::cout << "------------------------------------------\n";
     std::cout << "Type 'exit' to return to the main menu.\n\n";
 }
 
-void executeScreen(const Process& session){
+void executeScreen(const Process* session){
     std::string input;
     while (true) {
-        std::cout << session.getName() << " > ";
+        std::cout << session->getName() << " > ";
         std::getline(std::cin, input);
         if (input == "exit") {
             break;
@@ -73,6 +121,7 @@ void executeScreen(const Process& session){
 }
 
 void loadConfig(const std::string& filename) {
+    
     std::ifstream infile(filename);
     std::string line;
     while (std::getline(infile, line)) {
@@ -89,7 +138,7 @@ void loadConfig(const std::string& filename) {
         }
     }
 
-/*  std::cout << num_cpu;
+    /* std::cout << num_cpu;
     std::cout << scheduler;
     std::cout << quantum_cycles;
     std::cout << batch_process_freq;
@@ -99,18 +148,27 @@ void loadConfig(const std::string& filename) {
     std::cout << "\nConfiguration loaded from " << filename << "\n"; */
 }
 
-void executeThread(int id){
-    
-}
-
 void createSampleProcesses(){
     for (int i = 0; i < 10; ++i) {
         std::string processName = std::string("process") + (i < 9 ? "0" : "") + std::to_string(i+1);
         Process* newProcess = new Process(processName, 0, 100, getCurrentTimestamp(), "Attached");
         newProcess->create100PrintCommands();
-        sessions[processName] = *newProcess;
         fcfsScheduler->addProcess(newProcess);
     }
+}
+
+void initScreen(){
+    std::cout<< R"(
+   _____  _____  ____  _____  ______  _______     __
+  / ____|/ ____|/ __ \|  __ \|  ____|/ ____\ \   / /
+ | |    | (___ | |  | | |__) | |__  | (___  \ \_/ / 
+ | |     \___ \| |  | |  ___/|  __|  \___ \  \   /  
+ | |____ ____) | |__| | |    | |____ ____) |  | |   
+  \_____|_____/ \____/|_|    |______|_____/   |_|                             
+    )";
+        std::cout<< "\n"
+        "Hello, Welcome to the CSOPESY command line emulator!\n"
+        "Type initialize to start the emulator.\n";
 }
 
 void headerText () {
@@ -146,8 +204,10 @@ void headerText () {
             std:: string command;
             iss >> command;
 
-            if (
-            command == "initialize" || 
+            if(command == "initialize") {
+                std::cout << "Emulator has already been initialized.\n";
+            }
+            else if (
             command == "scheduler-test" || 
             command == "scheduler-stop" || 
             command == "report-util") {
@@ -161,33 +221,37 @@ void headerText () {
 
                 if ((option == "-r" || option == "-s") && !sessionName.empty()) {
                     if (option == "-s") {
-                        if (sessions.find(sessionName) == sessions.end()) {
-                            Process newSession = {
+                        Process *proc = findProcess(sessionName);
+                        if (proc == nullptr) {
+                            Process* newSession = new Process(
                                 sessionName,
-                                1 + rand() % 10, // mock current line
-                                10 + rand() % 100, // mock total lines
+                                0,
+                                100,
                                 getCurrentTimestamp(),
                                 "Attached"
-                            };
-                            sessions[sessionName] = newSession;
+                            );
+
+                            // Add to scheduler
+                            if(scheduler == "fcfs"){
+                                fcfsScheduler->addProcess(newSession);
+                            }
                             std::system("CLS");
                             std::cout << "Session '" << sessionName << "' created.\n\n";
-                            drawScreen(sessions[sessionName]);
-                            executeScreen(sessions[sessionName]);
+                            drawScreen(sessionName);
+                            executeScreen(newSession);
                             headerText();
                         } else {
                             std::cout << "Session already exists.\n";
                         }
                     } else if (option == "-r") {
-                        if (sessions.find(sessionName) != sessions.end()) {
+                        Process *proc = findProcess(sessionName);
+                        if (proc != nullptr) {
                             std::system("CLS");
-                            Process& current = sessions[sessionName];
-                            
-                            if (current.getStatus() == "Detached"){
-                                current.setStatus("Attached");
+                            if (proc->getStatus() == "Detached"){
+                                proc->setStatus("Attached");
                             }
-                            drawScreen(current);
-                            executeScreen(current);
+                            drawScreen(sessionName);
+                            executeScreen(proc);
                             headerText();
                         } else {
                             std::cout << "No such session to resume.\n";
@@ -217,18 +281,19 @@ void headerText () {
                     std::cout << "\nFinished processes:\n";
                     for (auto* proc : finished) {
                         std::cout << std::left << std::setw(12) << proc->getName()
-                                << " (" << proc->getTimestamp() << ")"
+                                << " (" << proc->getEndTime() << ")"
                                 << "    Finished    " << proc->getTotalLines() << " / " << proc->getTotalLines() << "\n";
                     }
                     std::cout << "----------------------------------------\n";
                 } else if (option == "-d") {
-                    if (sessions.find(sessionName) != sessions.end()) {
-                        Process& current = sessions[sessionName];
-                        if (current.getStatus() == "Detached") {
-                            std::cout << "Error: Session \"" << current.getName() << "\" is already detached.\n";
-                        } else if (current.getStatus() == "Attached") {
-                            current.setStatus("Detached");
-                            std::cout << current.getName() << " has been detached successfully.\n";
+                    Process *current = findProcess(sessionName);
+                    if (current != nullptr) {
+                        //Process& current = sessions[sessionName];
+                        if (current->getStatus() == "Detached") {
+                            std::cout << "Error: Session \"" << current->getName() << "\" is already detached.\n";
+                        } else if (current->getStatus() == "Attached") {
+                            current->setStatus("Detached");
+                            std::cout << current->getName() << " has been detached successfully.\n";
                         } else {
                             std::cout << "Error: Unknown session status.\n";
                         }
@@ -257,12 +322,44 @@ void headerText () {
 
 int main() {
     std::system("CLS");
-    fcfsScheduler = new FCFSScheduler(4); // 4 cores
+    bool init = false;
+    std::string in;
+    initScreen();
+
+    while(!init){
+        std::cin >> in;
+        if(in == "initialize") {
+            loadConfig("config.txt");
+            in = true;
+
+            if(scheduler == "fcfs") {
+                fcfsScheduler = new FCFSScheduler(num_cpu);
+                //fcfsScheduler->start();
+                break;
+            } else {
+                std::cout << "Error: Unsupported scheduler type.\n";
+                break;
+            }
+        }else if(in == "exit") {
+            std::cout << "Exiting emulator...\n";
+            return 0;
+        } else if(in == "clear") {
+            std::system("CLS");
+            initScreen();
+        }
+        else{
+            std::cout << "Invalid command\n";
+        }
+    }
+    
+    std::system("CLS");
+    headerText();
+
+    /* Week 6 HW Commands */
+    /* fcfsScheduler = new FCFSScheduler(4); // 4 cores
     createSampleProcesses();
     fcfsScheduler->start();
-    loadConfig("config.txt");
-    headerText();
     fcfsScheduler->stop();
-    delete fcfsScheduler;
+    delete fcfsScheduler; */
     return 0;
 }

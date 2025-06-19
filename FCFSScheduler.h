@@ -5,6 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <set>
 #include "Process.h"
 
 class FCFSScheduler {
@@ -18,6 +19,7 @@ public:
     bool isRunning() const;
     std::vector<Process*> getRunningProcesses();
     std::vector<Process*> getFinishedProcesses();
+    std::vector<Process*> getReadyProcesses();
 
 private:
     void schedulerThreadFunc();
@@ -29,7 +31,9 @@ private:
     std::queue<Process*> readyQueue;
     std::vector<Process*> runningProcesses;
     std::vector<Process*> finishedProcesses;
+    std::vector<Process*> readyProcesses;
     std::mutex queueMutex;
     std::condition_variable cv;
     std::atomic<bool> running;
+    std::set<int> availableCores;
 };
