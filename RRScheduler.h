@@ -22,6 +22,11 @@ public:
     std::vector<Process*> getReadyProcesses();
     void startProcessGenerator(int batchFreq);
     void stopProcessGenerator();
+    uint32_t getCpuCycles();
+    void schedulerLoop();
+    float getCpuUtilization();
+    int getBusyCores();
+    int getAvailableCores();
 
 private:
     void cpuWorker(int coreId);
@@ -37,10 +42,13 @@ private:
     std::vector<Process*> readyProcesses;
     std::mutex queueMutex;
     std::condition_variable cv;
+    std::atomic<uint32_t> cpuCycles{0};
     std::atomic<bool> running;
     std::set<int> availableCores;
     std::atomic<bool> processGenActive{false};
-    std::atomic<int> cpuTick{0};
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
+    bool tickRunning = false;
+    std::thread tickThread;
+    std::thread schedulerThread;
 };

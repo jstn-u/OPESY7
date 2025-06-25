@@ -22,6 +22,9 @@ public:
     std::vector<Process*> getReadyProcesses();
     void startProcessGenerator(int batchFreq);
     void stopProcessGenerator();
+    float getCpuUtilization();
+    int getBusyCores();
+    int getAvailableCores();
 
 private:
     void schedulerThreadFunc();

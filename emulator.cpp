@@ -37,8 +37,9 @@ std::queue<Process*> readyQueue;
 std::mutex queueMutex;
 std::condition_variable cv;
 std::atomic<bool> schedulerRunning{true};
-
 std::atomic<bool> schedulerActive{false};
+
+std::stringstream outputBuffer;
 
 std::string getCurrentTimestamp() {
     std::time_t now = std::time(nullptr);
@@ -200,9 +201,36 @@ void createSampleProcesses(){
         std::string processName = std::string("process") + (i < 9 ? "0" : "") + std::to_string(i+1);
         Process* newProcess = new Process(curr_id, processName, 0, 100, getCurrentTimestamp(), "Attached");
         ++curr_id;
-        newProcess->create100PrintCommands();
+        newProcess->createPrintCommands(100);
         fcfsScheduler->addProcess(newProcess);
     }
+}
+
+float getCpuUtilization() {
+    if (scheduler == "fcfs") {
+        return fcfsScheduler->getCpuUtilization();
+    } else if (scheduler == "rr") {
+        return rrScheduler->getCpuUtilization();
+    }
+    return 0.0f;
+}
+
+int getBusyCores() {
+    if (scheduler == "fcfs") {
+        return fcfsScheduler->getBusyCores();
+    } else if (scheduler == "rr") {
+        return rrScheduler->getBusyCores();
+    }
+    return 0;
+}
+
+int getAvailableCores() {
+    if (scheduler == "fcfs") {
+        return fcfsScheduler->getAvailableCores();
+    } else if (scheduler == "rr") {
+        return rrScheduler->getAvailableCores();
+    }
+    return 0;
 }
 
 void screenLS(std::vector<Process*> running, std::vector<Process*> finished) {
@@ -211,29 +239,52 @@ void screenLS(std::vector<Process*> running, std::vector<Process*> finished) {
         return a->getName() < b->getName();
     });
 
-    // Sort finished processes by name
+    // Sort finished processes by end time (earliest first)
     std::sort(finished.begin(), finished.end(), [](Process* a, Process* b) {
-        return a->getName() < b->getName();
+        return a->getEndTime() < b->getEndTime();
     });
-    std::cout << "CPU Utilization: 100%\n";
-    std::cout << "Cores Used: " << num_cpu << "\n";
-    std::cout << "Cores Available: 0\n";
+    outputBuffer.str(""); // Clear the output buffer
 
-    std::cout << "----------------------------------------\n";
-    std::cout << "Running processes:\n";
+    outputBuffer << "CPU Utilization: " << getCpuUtilization() << "%" << "\n";
+    outputBuffer << "Cores Used: " << getBusyCores() << "\n";
+    outputBuffer << "Cores Available: " << getAvailableCores() << "\n";
+
+    outputBuffer << "----------------------------------------\n";
+    outputBuffer << "Running processes:\n";
     for (auto* proc : running) {
-        std::cout << std::left << std::setw(12) << proc->getName()
+        outputBuffer << std::left << std::setw(12) << proc->getName()
                 << " (" << proc->getTimestamp() << ")"
                 << "    Core: " << proc->getCpuId()
                 << "    " << proc->getCurrentLine() << " / " << proc->getTotalLines() << "\n";
     }
-    std::cout << "\nFinished processes:\n";
+    outputBuffer << "\nFinished processes:\n";
     for (auto* proc : finished) {
-        std::cout << std::left << std::setw(12) << proc->getName()
+        outputBuffer << std::left << std::setw(12) << proc->getName()
                 << " (" << proc->getEndTime() << ")"
                 << "    Finished    " << proc->getTotalLines() << " / " << proc->getTotalLines() << "\n";
     }
-    std::cout << "----------------------------------------\n";
+    outputBuffer << "----------------------------------------\n";
+}
+
+void reportUtil(){
+    if(scheduler == "fcfs"){
+        std::vector<Process*> running = fcfsScheduler->getRunningProcesses();
+        std::vector<Process*> finished = fcfsScheduler->getFinishedProcesses();
+        screenLS(running, finished);
+    }else if(scheduler == "rr"){
+        std::vector<Process*> running = rrScheduler->getRunningProcesses();
+        std::vector<Process*> finished = rrScheduler->getFinishedProcesses();
+        screenLS(running, finished);
+    }
+
+    std::ofstream reportFile("csopesy-log.txt");
+    if (reportFile.is_open()) {
+        reportFile << outputBuffer.str();
+        reportFile.close();
+        std::cout << "Report saved to csopesy-log.txt\n";
+    } else {
+        std::cerr << "Error opening file!" << std::endl;
+    }
 }
 
 void initScreen(){
@@ -286,10 +337,9 @@ void headerText () {
             if(command == "initialize") {
                 std::cout << "Emulator has already been initialized.\n";
             }
-            else if (
-            command == "scheduler-test" || 
-            command == "report-util") {
-                std::cout << command + " command recognized. Doing something.\n";
+            else if (command == "report-util") {
+                updateProcessMaps();
+                reportUtil();
             }
             else if (command == "screen") {
                 std::string option;
@@ -344,11 +394,13 @@ void headerText () {
                         std::vector<Process*> running = fcfsScheduler->getRunningProcesses();
                         std::vector<Process*> finished = fcfsScheduler->getFinishedProcesses();
                         screenLS(running, finished);
+                        std::cout << outputBuffer.str();
                     }
                     else if(scheduler == "rr"){
                         std::vector<Process*> running = rrScheduler->getRunningProcesses();
                         std::vector<Process*> finished = rrScheduler->getFinishedProcesses();
                         screenLS(running, finished);
+                        std::cout << outputBuffer.str();
                     }
                 } else if (option == "-d") {
                     Process *current = findProcess(sessionName);

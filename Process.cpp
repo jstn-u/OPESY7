@@ -18,8 +18,8 @@ std::time_t Process::getStartTime() const {
     return startTime;
 }
 
-void Process::create100PrintCommands() {
-    for (int i = 0; i < 100; ++i) {
+void Process::createPrintCommands(int totalIns) {
+    for (int i = 0; i < totalIns; ++i) {
         std::string msg = "Hello world from " + name + "!";
         commands.push_back(new PrintCommand(msg));
     }

@@ -11,12 +11,6 @@
 class Instruction; // Forward declaration
 
 class Process{
-enum ProcessState{
-    READY,
-    RUNNING,
-    WAITING,
-    FINISHED
-};
 
 private:
     int pid;
@@ -38,7 +32,7 @@ public:
     void setCpuId(int id) { cpuId = id; }
     int getCpuId() const { return cpuId; }
     void addCommand(PrintCommand* cmd) { commands.push_back(cmd); }
-    void create100PrintCommands();
+    void createPrintCommands(int totalIns);
     void executeCurrentCommand(int cpuId, std::string processName, std::string time);
     void addInstruction(Instruction* instr) { instructions.push_back(instr); }
 
