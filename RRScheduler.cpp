@@ -1,36 +1,41 @@
-#include "FCFSScheduler.h"
+#include "RRScheduler.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <set>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
 
 extern int delay_per_exec;
+extern int curr_id;
 
-FCFSScheduler::FCFSScheduler(int numCores) : numCores(numCores), running(false) {}
+RRScheduler::RRScheduler(int numCores, int quantumCycles)
+    : numCores(numCores), quantumCycles(quantumCycles), running(false) {}
 
-FCFSScheduler::~FCFSScheduler() {
+RRScheduler::~RRScheduler() {
     stop();
 }
 
-void FCFSScheduler::addProcess(Process* proc) {
+void RRScheduler::addProcess(Process* proc) {
     std::lock_guard<std::mutex> lock(queueMutex);
     readyProcesses.push_back(proc);
     readyQueue.push(proc);
     cv.notify_all();
 }
 
-void FCFSScheduler::start() {
+void RRScheduler::start() {
     running = true;
     availableCores.clear();
     for (int i = 0; i < numCores; ++i) {
         availableCores.insert(i);
     }
     for (int i = 0; i < numCores; ++i) {
-        cpuThreads.emplace_back(&FCFSScheduler::cpuWorker, this, i);
+        cpuThreads.emplace_back(&RRScheduler::cpuWorker, this, i);
     }
 }
 
-void FCFSScheduler::stop() {
+void RRScheduler::stop() {
     running = false;
     cv.notify_all();
     for (auto& t : cpuThreads) {
@@ -39,26 +44,26 @@ void FCFSScheduler::stop() {
     cpuThreads.clear();
 }
 
-bool FCFSScheduler::isRunning() const {
+bool RRScheduler::isRunning() const {
     return running;
 }
 
-std::vector<Process*> FCFSScheduler::getRunningProcesses() {
+std::vector<Process*> RRScheduler::getRunningProcesses() {
     std::lock_guard<std::mutex> lock(queueMutex);
     return runningProcesses;
 }
 
-std::vector<Process*> FCFSScheduler::getFinishedProcesses() {
+std::vector<Process*> RRScheduler::getFinishedProcesses() {
     std::lock_guard<std::mutex> lock(queueMutex);
     return finishedProcesses;
 }
 
-std::vector<Process*> FCFSScheduler::getReadyProcesses() {
+std::vector<Process*> RRScheduler::getReadyProcesses() {
     std::lock_guard<std::mutex> lock(queueMutex);
     return readyProcesses;
 }
 
-void FCFSScheduler::cpuWorker(int coreId) {
+void RRScheduler::cpuWorker(int coreId) {
     while (running) {
         Process* proc = nullptr;
         int assignedCore = -1;
@@ -69,7 +74,6 @@ void FCFSScheduler::cpuWorker(int coreId) {
             if (!readyQueue.empty() && !availableCores.empty()) {
                 proc = readyQueue.front();
                 readyQueue.pop();
-                // Always pick the lowest-numbered available core
                 assignedCore = *availableCores.begin();
                 availableCores.erase(availableCores.begin());
                 runningProcesses.push_back(proc);
@@ -77,30 +81,26 @@ void FCFSScheduler::cpuWorker(int coreId) {
         }
         if (proc && assignedCore != -1) {
             proc->setCpuId(assignedCore);
-            while (proc->getCurrentLine() < proc->getTotalLines()) {
+            int quantum = 0;
+            while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
+                ++quantum;
                 if (delay_per_exec > 0) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(delay_per_exec));
                 }
             }
-            std::time_t now = std::time(nullptr);
-            std::tm localTime;
-#ifdef _WIN32
-            localtime_s(&localTime, &now);
-#else
-            localtime_r(&now, &localTime);
-#endif
-            std::ostringstream oss;
-            oss << std::put_time(&localTime, "%m/%d/%Y, %I:%M:%S %p");
-
-            proc->setEndTime(oss.str());
-            proc->setStatus("Finished");
+            bool finished = proc->getCurrentLine() >= proc->getTotalLines();
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
-                finishedProcesses.push_back(proc);
                 runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
-                // Mark this core as available again
+                if (finished) {
+                    proc->setEndTime(getCurrentTimestamp());
+                    proc->setStatus("Finished");
+                    finishedProcesses.push_back(proc);
+                } else {
+                    readyQueue.push(proc);
+                }
                 availableCores.insert(assignedCore);
                 cv.notify_all();
             }
@@ -108,19 +108,19 @@ void FCFSScheduler::cpuWorker(int coreId) {
     }
 }
 
-void FCFSScheduler::startProcessGenerator(int batchFreq) {
+void RRScheduler::startProcessGenerator(int batchFreq) {
     batchProcessFreq = batchFreq;
     processGenActive = true;
     cpuTick = 0;
-    processGeneratorThread = std::thread(&FCFSScheduler::processGeneratorFunc, this);
+    processGeneratorThread = std::thread(&RRScheduler::processGeneratorFunc, this);
 }
 
-void FCFSScheduler::stopProcessGenerator() {
+void RRScheduler::stopProcessGenerator() {
     processGenActive = false;
     if (processGeneratorThread.joinable()) processGeneratorThread.join();
 }
 
-std::string FCFSScheduler::getCurrentTimestamp() {
+std::string RRScheduler::getCurrentTimestamp() {
     std::time_t now = std::time(nullptr);
     std::tm localTime;
 #ifdef _WIN32
@@ -133,16 +133,17 @@ std::string FCFSScheduler::getCurrentTimestamp() {
     return oss.str();
 }
 
-void FCFSScheduler::processGeneratorFunc() {
-    extern int curr_id;
+void RRScheduler::processGeneratorFunc() {
+    int procNum = 0;
     while (processGenActive) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
         int tick = ++cpuTick;
         if (batchProcessFreq > 0 && tick % batchProcessFreq == 0) {
-            std::string processName = "auto_proc_" + std::to_string(tick);
+            std::string processName = "auto_proc_" + std::to_string(procNum);
             std::string timestamp = getCurrentTimestamp();
             Process* newProcess = new Process(curr_id, processName, 0, 100, timestamp, "Ready");
-            ++curr_id;
+            curr_id++;
+            procNum++;
             newProcess->create100PrintCommands();
             addProcess(newProcess);
         }

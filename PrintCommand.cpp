@@ -5,6 +5,18 @@ PrintCommand::PrintCommand(const std::string& toPrint){
 }
 
 void PrintCommand::execute(int cpu, std::string processName, std::time_t endTime) {
+    std::tm localTime;
+#ifdef _WIN32
+    localtime_s(&localTime, &endTime);
+#else
+    localtime_r(&endTime, &localTime);
+#endif
+    std::ostringstream timeStream;
+    timeStream << std::put_time(&localTime, "(%m/%d/%Y %I:%M:%S%p)");
+    logEntry = timeStream.str() + "    Core:" + std::to_string(cpu) + "    \"" + this->toPrint + "\"";
+}
+
+/* void PrintCommand::execute(int cpu, std::string processName, std::time_t endTime) {
     std::time_t now = std::time(nullptr);
     std::tm localTime;
 #ifdef _WIN32
@@ -27,4 +39,4 @@ void PrintCommand::execute(int cpu, std::string processName, std::time_t endTime
             << "    \"" << this->toPrint << "\"" << std::endl;
         logFile.close();
     }
-}
+} */

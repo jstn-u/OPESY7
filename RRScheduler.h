@@ -8,10 +8,10 @@
 #include <set>
 #include "Process.h"
 
-class FCFSScheduler {
+class RRScheduler {
 public:
-    FCFSScheduler(int numCores);
-    ~FCFSScheduler();
+    RRScheduler(int numCores, int quantumCycles);
+    ~RRScheduler();
 
     void addProcess(Process* proc);
     void start();
@@ -24,14 +24,13 @@ public:
     void stopProcessGenerator();
 
 private:
-    void schedulerThreadFunc();
     void cpuWorker(int coreId);
     void processGeneratorFunc();
     std::string getCurrentTimestamp();
 
     int numCores;
+    int quantumCycles;
     std::vector<std::thread> cpuThreads;
-    std::thread schedulerThread;
     std::queue<Process*> readyQueue;
     std::vector<Process*> runningProcesses;
     std::vector<Process*> finishedProcesses;
@@ -44,5 +43,4 @@ private:
     std::atomic<int> cpuTick{0};
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
-    int curr_id;
 };

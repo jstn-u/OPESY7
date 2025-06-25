@@ -3,7 +3,12 @@
 #include <vector>
 #include <memory>
 #include <ctime>
+#include <map>
+#include <variant>
+#include <functional>
 #include "PrintCommand.h"
+
+class Instruction; // Forward declaration
 
 class Process{
 enum ProcessState{
@@ -24,6 +29,10 @@ private:
     std::time_t startTime;
     std::string endTime;
     std::vector<PrintCommand*> commands;
+    std::map<std::string, uint16_t> variables;
+    std::vector<Instruction*> instructions;
+    int instructionPointer = 0;
+    int sleepTicks = 0;
 
 public:
     void setCpuId(int id) { cpuId = id; }
@@ -31,9 +40,10 @@ public:
     void addCommand(PrintCommand* cmd) { commands.push_back(cmd); }
     void create100PrintCommands();
     void executeCurrentCommand(int cpuId, std::string processName, std::string time);
+    void addInstruction(Instruction* instr) { instructions.push_back(instr); }
 
     Process();
-    Process(const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status);
+    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status);
     Process(int pid, std::string processName);
     ~Process() = default;
 
@@ -50,4 +60,12 @@ public:
     void setEndTime(std::string t) { endTime = t; };
     std::string getEndTime() const { return endTime; };
     std::string getEndTimeString();
+    std::vector<std::string> getAllLogs() const {
+        std::vector<std::string> logs;
+        for (const auto* cmd : commands) {
+            logs.push_back(cmd->getLog());
+        }
+        return logs;
+    }
+    void setPid(int id){ pid = id; };
 };
