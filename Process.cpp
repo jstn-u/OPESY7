@@ -47,7 +47,6 @@ void Process::createPrintCommands(int totalIns) {
         std::string msg;
 
         if (type == "FOR" && i + 3 <= totalIns) {
-            // Always generate 3 consecutive FORs
             for (int j = 0; j < 3; ++j) {
                 msg = "FOR([PRINT(\"Hello world\")], 3)";
                 commands.push_back(new PrintCommand(msg));
