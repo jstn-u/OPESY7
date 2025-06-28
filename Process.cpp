@@ -84,48 +84,6 @@ void Process::createPrintCommands(int totalIns) {
     }
 }
 
-
-/*void Process::createPrintCommands(int totalIns) {
-    static const std::vector<std::string> instrTypes = {
-        "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR"
-    };
-
-    for (int i = 0; i < totalIns; ++i) {
-        std::string type = instrTypes[getRandomInt(0, instrTypes.size() - 1)];
-        std::string msg;
-
-        if (type == "PRINT") {
-            msg = "PRINT(\"Hello world from " + name + "!\")";
-        }
-        else if (type == "DECLARE") {
-            std::string var = "var" + std::to_string(getRandomInt(1, 5));
-            int value = getRandomInt(0, 65535);
-            msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
-        }
-        else if (type == "ADD" || type == "SUBTRACT") {
-            std::string target = "var" + std::to_string(getRandomInt(1, 5));
-            std::string src1 = (getRandomInt(0, 1) == 0) 
-                ? std::to_string(getRandomInt(0, 100)) 
-                : "var" + std::to_string(getRandomInt(1, 5));
-            std::string src2 = (getRandomInt(0, 1) == 0) 
-                ? std::to_string(getRandomInt(0, 100)) 
-                : "var" + std::to_string(getRandomInt(1, 5));
-            msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
-        }
-        else if (type == "SLEEP") {
-            int ticks = getRandomInt(1, 50);
-            msg = "SLEEP(" + std::to_string(ticks) + ")";
-        }
-        else if (type == "FOR") {
-            int repeats = getRandomInt(2, 4);
-            std::string inner = "PRINT(\"Hello world\")";  // Simplified dummy content
-            msg = "FOR([" + inner + "], " + std::to_string(repeats) + ")";
-        }
-    
-        commands.push_back(new PrintCommand(msg));
-    }
-}*/
-
 void Process::executeCurrentCommand(int cpuId, std::string processName, std::string time) {
     if (currentLine < commands.size()) {
         commands[currentLine]->execute(cpuId, processName, std::time(nullptr));
