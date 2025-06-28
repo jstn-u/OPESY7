@@ -47,8 +47,9 @@ void Process::createPrintCommands(int totalIns) {
         std::string msg;
 
         if (type == "FOR" && i + 3 <= totalIns) {
-            for (int j = 0; j < 3; ++j) {
-                msg = "FOR([PRINT(\"Hello world\")], 3)";
+            int forCount = getRandomInt(1, 3);
+            for (int j = 0; j < forCount && i < totalIns; ++j) {
+                msg = "FOR([PRINT(\"Hello world\")], " + std::to_string(forCount) + ")";
                 commands.push_back(new PrintCommand(msg));
                 ++i;
             }

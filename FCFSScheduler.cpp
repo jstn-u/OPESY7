@@ -92,7 +92,7 @@ void FCFSScheduler::cpuWorker(int coreId) {
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
                 targetCycleCount += delay_per_exec;
-                globalCpuCycles++; // Increment global cycle counter after each instruction
+                globalCpuCycles++;
             }
             std::time_t now = std::time(nullptr);
             std::tm localTime;
