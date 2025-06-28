@@ -29,6 +29,10 @@ private:
     int sleepTicks = 0;
 
 public:
+    //added
+    uint16_t getVariable(const std::string& name) const;
+    void setVariable(const std::string& name, uint16_t value);
+    //end added
     void setCpuId(int id) { cpuId = id; }
     int getCpuId() const { return cpuId; }
     void addCommand(PrintCommand* cmd) { commands.push_back(cmd); }
