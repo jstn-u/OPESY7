@@ -351,11 +351,13 @@ void headerText () {
                     if (option == "-s") {
                         Process *proc = findProcess(sessionName);
                         if (proc == nullptr) {
+                            int numInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
+
                             Process* newSession = new Process(
                                 curr_id,
                                 sessionName,
                                 0,
-                                100,
+                                numInstructions,
                                 getCurrentTimestamp(),
                                 "Attached"
                             );

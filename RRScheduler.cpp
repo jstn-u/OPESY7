@@ -106,8 +106,6 @@ float RRScheduler::getCpuUtilization() {
 }
 
 void RRScheduler::cpuWorker(int coreId) {
-    //uint32_t currentCycleCount = getCpuCycles();
-    //uint32_t targetCycleCount = currentCycleCount + delay_per_exec;
     while (running) {
         Process* proc = nullptr;
         int assignedCore = -1;
@@ -127,39 +125,40 @@ void RRScheduler::cpuWorker(int coreId) {
 
         if (proc && assignedCore != -1) {
             proc->setCpuId(assignedCore);
-            int quantum = 0;
+            uint32_t currentCycles = getCpuCycles();
+            uint32_t nextCycle = currentCycles + delay_per_exec + 1;
+            uint32_t quantumCyclesVal = quantumCycles;
+            uint32_t quantumCommands = 0;
 
-            while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
-                // Simulate delay before instruction execution
-                if (delay_per_exec > 0) {
-                    auto start = std::chrono::steady_clock::now();
-                    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(delay_per_exec)) {
-                        // Busy-wait: simulate CPU being held
-                    }
+            while (!proc->isFinished() && quantumCommands < quantumCyclesVal) {
+                while (getCpuCycles() < nextCycle) {
+                    if (!running) break;
                 }
+                if (!running) break;
 
-                /* currentCycleCount = getCpuCycles();
-                if(delay_per_exec > 0){
-                    while(currentCycleCount < targetCycleCount){} // empty loop to wait for the next cycle
-                } */
-
+                bool shouldAdvance = true;
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
-                proc->moveCurrentLine();
-                quantum++;
+                if (shouldAdvance) {
+                    proc->moveCurrentLine();
+                }
+                quantumCommands++;
+                nextCycle += delay_per_exec + 1;
             }
 
-            bool finished = proc->getCurrentLine() >= proc->getTotalLines();
+            bool finished = proc->isFinished();
 
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
                 runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
 
-                if (finished) {
+                if (!finished) {
+                    proc->setCpuId(-1);
+                    proc->setStatus("Waiting");
+                    readyQueue.push(proc);
+                } else {
                     proc->setEndTime(getCurrentTimestamp());
                     proc->setStatus("Finished");
                     finishedProcesses.push_back(proc);
-                } else {
-                    readyQueue.push(proc);
                 }
 
                 availableCores.insert(assignedCore);

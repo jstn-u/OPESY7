@@ -66,4 +66,7 @@ public:
         return logs;
     }
     void setPid(int id){ pid = id; };
+
+    // RR/OS-style helpers
+    bool isFinished() const { return currentLine >= totalLines; }
 };

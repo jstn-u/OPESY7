@@ -81,12 +81,18 @@ void FCFSScheduler::cpuWorker(int coreId) {
         }
         if (proc && assignedCore != -1) {
             proc->setCpuId(assignedCore);
+            uint32_t currentCycleCount = globalCpuCycles.load();
+            uint32_t targetCycleCount = currentCycleCount + delay_per_exec;
             while (proc->getCurrentLine() < proc->getTotalLines()) {
+                // Busy-wait for delay_per_exec cycles
+                while (globalCpuCycles.load() < targetCycleCount) {
+                    // Optionally sleep to avoid tight loop
+                    // std::this_thread::sleep_for(std::chrono::microseconds(100));
+                }
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
-                if (delay_per_exec > 0) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(delay_per_exec));
-                }
+                targetCycleCount += delay_per_exec;
+                globalCpuCycles++; // Increment global cycle counter after each instruction
             }
             std::time_t now = std::time(nullptr);
             std::tm localTime;
@@ -97,7 +103,6 @@ void FCFSScheduler::cpuWorker(int coreId) {
 #endif
             std::ostringstream oss;
             oss << std::put_time(&localTime, "%m/%d/%Y, %I:%M:%S %p");
-
             proc->setEndTime(oss.str());
             proc->setStatus("Finished");
             {
