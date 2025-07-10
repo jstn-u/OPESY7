@@ -44,6 +44,7 @@ private:
     std::atomic<bool> running;
     std::set<int> availableCores;
     std::atomic<bool> processGenActive{false};
+    std::atomic<uint32_t> globalCpuCycles{0};
     std::atomic<int> cpuTick{0};
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
