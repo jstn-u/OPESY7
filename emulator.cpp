@@ -18,6 +18,11 @@
 #include <atomic>
 #include <algorithm>
 
+// Utility function to generate a random integer in [min, max]
+int randInt(int min, int max) {
+    return min + (std::rand() % (max - min + 1));
+}
+
 int num_cpu;
 std::string scheduler;
 int quantum_cycles;
@@ -374,6 +379,22 @@ void headerText () {
                             drawScreen(sessionName);
                             executeScreen(sessionName);
                             headerText();
+                            // Helper to continuously print x for a process in a separate thread
+                            std::thread([proc]() {
+                                int xVal = 0;
+                                int line = 0;
+                                while (line < proc->getTotalLines()) {
+                                    if (line % 2 == 0) {
+                                        std::cout << proc->getName() << ": PRINT(Value from: " << xVal << ")" << std::endl;
+                                    } else {
+                                        int addVal = randInt(1, 10);
+                                        xVal += addVal;
+                                    }
+                                    ++line;
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(500)); // adjust as needed
+                                }
+                                std::cout << proc->getName() << ": Finished printing x sequence." << std::endl;
+                            }).detach();
                         } else {
                             std::cout << "Session already exists.\n";
                         }
@@ -469,6 +490,18 @@ void headerText () {
             }
         }
     }
+}
+
+// When a process is created and added, immediately notify all worker threads to wake up and execute
+void addAndRunProcess(Process* proc) {
+    if (scheduler == "fcfs" && fcfsScheduler) {
+        fcfsScheduler->addProcess(proc);
+        // No explicit notify needed, FCFS addProcess already notifies
+    } else if (scheduler == "rr" && rrScheduler) {
+        rrScheduler->addProcess(proc);
+        // No explicit notify needed, RR addProcess already notifies
+    }
+    // The scheduler's addProcess already calls cv.notify_all(), so workers will wake up immediately
 }
 
 int main() {

@@ -37,6 +37,24 @@ int getRandomInt(int min, int max) {
 }
 
 void Process::createPrintCommands(int totalIns) {
+    // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
+    // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
+    if (name.find("auto_proc_") != 0) {
+        variables["x"] = 0;
+        int xVal = 0;
+        for (int i = 0; i < totalIns; ++i) {
+            std::string msg;
+            if (i % 2 == 0) {
+                msg = "PRINT(\"Value from: " + std::to_string(xVal) + ")";
+            } else {
+                int addVal = getRandomInt(1, 10);
+                msg = "ADD(x, x, " + std::to_string(addVal) + ")";
+                xVal += addVal;
+            }
+            commands.push_back(new PrintCommand(msg));
+        }
+        return;
+    }
     static const std::vector<std::string> instrTypes = {
         "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR"
     };
