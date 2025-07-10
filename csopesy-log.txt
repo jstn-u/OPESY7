@@ -1,10 +1,33 @@
+<<<<<<< Updated upstream
 CPU Utilization: 0%
 Cores Used: 0
 Cores Available: 8
+=======
+CPU Utilization: 100%
+Cores Used: 16
+Cores Available: 0
+>>>>>>> Stashed changes
 ----------------------------------------
 Running processes:
+auto_proc_1066 (06/28/2025, 09:53:02 PM)    Core: 13    30 / 5000
+auto_proc_1154 (06/28/2025, 09:53:05 PM)    Core: 6    25 / 5000
+auto_proc_1339 (06/28/2025, 09:53:11 PM)    Core: 9    18 / 5000
+auto_proc_1445 (06/28/2025, 09:53:14 PM)    Core: 10    11 / 5000
+auto_proc_155 (06/28/2025, 09:52:34 PM)    Core: 14    163 / 5000
+auto_proc_1691 (06/28/2025, 09:53:21 PM)    Core: 5    2 / 5000
+auto_proc_230 (06/28/2025, 09:52:36 PM)    Core: 15    138 / 5000
+auto_proc_305 (06/28/2025, 09:52:39 PM)    Core: 7    115 / 5000
+auto_proc_473 (06/28/2025, 09:52:44 PM)    Core: 11    85 / 5000
+auto_proc_547 (06/28/2025, 09:52:46 PM)    Core: 1    75 / 5000
+auto_proc_548 (06/28/2025, 09:52:46 PM)    Core: 8    78 / 5000
+auto_proc_636 (06/28/2025, 09:52:49 PM)    Core: 0    67 / 5000
+auto_proc_689 (06/28/2025, 09:52:51 PM)    Core: 2    62 / 5000
+auto_proc_741 (06/28/2025, 09:52:52 PM)    Core: 12    59 / 5000
+auto_proc_80 (06/28/2025, 09:52:32 PM)    Core: 3    206 / 5000
+auto_proc_854 (06/28/2025, 09:52:56 PM)    Core: 4    46 / 5000
 
 Finished processes:
+<<<<<<< Updated upstream
 auto_proc_1  (06/26/2025, 01:48:36 AM)    Finished    100 / 100
 auto_proc_0  (06/26/2025, 01:48:36 AM)    Finished    100 / 100
 auto_proc_20 (06/26/2025, 01:48:36 AM)    Finished    100 / 100
@@ -2483,4 +2506,6 @@ auto_proc_2468 (06/26/2025, 01:49:30 AM)    Finished    100 / 100
 auto_proc_2467 (06/26/2025, 01:49:30 AM)    Finished    100 / 100
 auto_proc_2466 (06/26/2025, 01:49:30 AM)    Finished    100 / 100
 auto_proc_2465 (06/26/2025, 01:49:30 AM)    Finished    100 / 100
+=======
+>>>>>>> Stashed changes
 ----------------------------------------
