@@ -16,11 +16,21 @@ extern int min_ins;
 extern int max_ins;
 extern int mem_per_proc;
 
-RRScheduler::RRScheduler(int numCores, int quantumCycles)
+/*RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {}
 
 RRScheduler::~RRScheduler() {
     stop();
+}*/
+
+RRScheduler::RRScheduler(int numCores, int quantumCycles)
+    : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {
+    memoryManager = new MemoryManager(16384, 4096);  // adjust to use your config values
+}
+
+RRScheduler::~RRScheduler() {
+    stop();
+    delete memoryManager;
 }
 
 void RRScheduler::addProcess(Process* proc) {
@@ -82,9 +92,19 @@ uint32_t RRScheduler::getCpuCycles() {
     return cpuCycles.load();
 }
 
+/*void RRScheduler::schedulerLoop() {
+    while (running) {
+        cpuCycles++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}*/
+
 void RRScheduler::schedulerLoop() {
     while (running) {
         cpuCycles++;
+        if (cpuCycles % quantumCycles == 0) {
+            memoryManager->printSnapshot(cpuCycles);
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
@@ -107,6 +127,76 @@ float RRScheduler::getCpuUtilization() {
 }
 
 void RRScheduler::cpuWorker(int coreId) {
+    while (running) {
+        Process* proc = nullptr;
+        int assignedCore = -1;
+
+        {
+            std::unique_lock<std::mutex> lock(queueMutex);
+            cv.wait(lock, [this] { return (!readyQueue.empty() && !availableCores.empty()) || !running; });
+            if (!running) break;
+
+            if (!readyQueue.empty() && !availableCores.empty()) {
+                proc = readyQueue.front();
+                readyQueue.pop();
+                assignedCore = *availableCores.begin();
+                availableCores.erase(availableCores.begin());
+                runningProcesses.push_back(proc);
+            }
+        }
+
+        if (proc && assignedCore != -1) {
+            // Try to allocate memory for this process
+            if (!memoryManager->allocate(proc->getName())) {
+                // Not enough memory, requeue it
+                std::lock_guard<std::mutex> lock(queueMutex);
+                readyQueue.push(proc);
+                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
+                availableCores.insert(assignedCore);
+                cv.notify_all();
+                continue;
+            }
+
+            proc->setCpuId(assignedCore);
+            int quantum = 0;
+
+            while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
+                if (delay_per_exec > 0) {
+                    auto start = std::chrono::steady_clock::now();
+                    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(delay_per_exec)) {
+                        // busy wait
+                    }
+                }
+
+                proc->executeCurrentCommand(assignedCore, proc->getName(), "");
+                proc->moveCurrentLine();
+                quantum++;
+            }
+
+            bool finished = proc->getCurrentLine() >= proc->getTotalLines();
+
+            {
+                std::lock_guard<std::mutex> lock(queueMutex);
+
+                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
+
+                if (finished) {
+                    proc->setEndTime(getCurrentTimestamp());
+                    proc->setStatus("Finished");
+                    finishedProcesses.push_back(proc);
+                    memoryManager->free(proc->getName());
+                } else {
+                    readyQueue.push(proc);
+                }
+
+                availableCores.insert(assignedCore);
+                cv.notify_all();
+            }
+        }
+    }
+}
+
+/*void RRScheduler::cpuWorker(int coreId) {
     //uint32_t currentCycleCount = getCpuCycles();
     //uint32_t targetCycleCount = currentCycleCount + delay_per_exec;
     while (running) {
@@ -144,7 +234,7 @@ void RRScheduler::cpuWorker(int coreId) {
                     while(currentCycleCount < targetCycleCount){} // empty loop to wait for the next cycle
                 } */
 
-                proc->executeCurrentCommand(assignedCore, proc->getName(), "");
+                /*proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
                 quantum++;
             }
@@ -168,7 +258,7 @@ void RRScheduler::cpuWorker(int coreId) {
             }
         }
     }
-}
+}*/
 
 void RRScheduler::startProcessGenerator(int batchFreq) {
     batchProcessFreq = batchFreq;

@@ -7,6 +7,7 @@
 #include <atomic>
 #include <set>
 #include "Process.h"
+#include "MemoryManager.h"
 
 class RRScheduler {
 public:
@@ -29,9 +30,12 @@ public:
     int getAvailableCores();
 
 private:
+    MemoryManager* memoryManager;
     void cpuWorker(int coreId);
     void processGeneratorFunc();
     std::string getCurrentTimestamp();
+    
+
 
     int numCores;
     int quantumCycles;
