@@ -14,6 +14,7 @@ extern int num_cpu;
 extern int curr_id;
 extern int min_ins;
 extern int max_ins;
+extern int mem_per_proc;
 
 RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {}
@@ -206,7 +207,7 @@ void RRScheduler::processGeneratorFunc() {
             std::string processName = "auto_proc_" + std::to_string(curr_id);
             std::string timestamp = getCurrentTimestamp();
 
-            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready");
+            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_per_proc);
             curr_id++;
             newProcess->createPrintCommands(totalInstructions);
             addProcess(newProcess);

@@ -27,6 +27,7 @@ private:
     std::vector<Instruction*> instructions;
     int instructionPointer = 0;
     int sleepTicks = 0;
+    int mem_per_proc; // Memory allocated per process
 
 public:
     //added
@@ -41,7 +42,8 @@ public:
     void addInstruction(Instruction* instr) { instructions.push_back(instr); }
 
     Process();
-    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status);
+    Process(int pid, const std::string& name, int currentLine, 
+        int totalLines, const std::string& timestamp, const std::string& status, int mem_per_proc);
     Process(int pid, std::string processName);
     ~Process() = default;
 

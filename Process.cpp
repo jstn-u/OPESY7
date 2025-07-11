@@ -5,8 +5,8 @@
 #include <random>
 #include <ctime>
 
-Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status)
-    : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {
+Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int mem_per_proc)
+    : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), mem_per_proc(mem_per_proc) {
     this->cpuId = -1; // Default CPU core ID, can be set later
 }
 

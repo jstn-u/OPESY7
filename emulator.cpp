@@ -30,6 +30,10 @@ int batch_process_freq;
 int min_ins;
 int max_ins;
 int delay_per_exec;
+int max_overall_mem;
+int mem_per_frame;
+int mem_per_proc;
+
 FCFSScheduler* fcfsScheduler = nullptr;
 RRScheduler* rrScheduler = nullptr;
 int curr_id = 0;
@@ -175,6 +179,9 @@ void loadConfig(const std::string& filename) {
             else if (key == "min-ins") iss >> min_ins;
             else if (key == "max-ins") iss >> max_ins;
             else if (key == "delay-per-exec") iss >> delay_per_exec;
+            else if (key == "max-overall-mem") iss >> max_overall_mem;
+            else if (key == "mem-per-frame") iss >> mem_per_frame;
+            else if (key == "mem-per-proc") iss >> mem_per_proc;
         }
     }
 
@@ -204,7 +211,7 @@ void loadConfig(const std::string& filename) {
 void createSampleProcesses(){
     for (int i = 0; i < 10; ++i) {
         std::string processName = std::string("process") + (i < 9 ? "0" : "") + std::to_string(i+1);
-        Process* newProcess = new Process(curr_id, processName, 0, 100, getCurrentTimestamp(), "Attached");
+        Process* newProcess = new Process(curr_id, processName, 0, 100, getCurrentTimestamp(), "Attached", mem_per_proc);
         ++curr_id;
         newProcess->createPrintCommands(100);
         fcfsScheduler->addProcess(newProcess);
@@ -364,7 +371,8 @@ void headerText () {
                                 0,
                                 numInstructions,
                                 getCurrentTimestamp(),
-                                "Attached"
+                                "Attached",
+                                mem_per_proc
                             );
 
                             ++curr_id;
