@@ -160,6 +160,7 @@ void RRScheduler::cpuWorker(int coreId) {
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
                 if (cpuCycles % quantumCycles == 0) {
                     memoryManager->printSnapshot(cpuCycles);

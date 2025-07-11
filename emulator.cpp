@@ -468,12 +468,12 @@ void headerText () {
             else if(command == "scheduler-stop") {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
-                    fcfsScheduler->stop();
-                    std::cout << "Scheduler stopped.\n";
-                }else if(rrScheduler && rrScheduler->isRunning()) {
+                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
+                    // Do NOT block here. Let the main loop continue.
+                } else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
-                    rrScheduler->stop();
-                    std::cout << "Scheduler stopped.\n";
+                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
+                    // Do NOT block here. Let the main loop continue.
                 }
                 else {
                     std::cout << "Scheduler is not running.\n";
