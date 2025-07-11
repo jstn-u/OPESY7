@@ -3,6 +3,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <algorithm>
 
 MemoryManager::MemoryManager(int totalMem, int memPerProc)
     : totalMem(totalMem), memPerProc(memPerProc) {
@@ -69,11 +70,28 @@ void MemoryManager::printSnapshot(int quantum) {
     out << "Total external fragmentation in KB: " << externalFragmentation() << "\n\n";
     out << "----end---- = " << totalMem << "\n\n";
 
+    // Print each allocated block in descending order of start
+    std::vector<MemoryBlock> allocatedBlocks;
     for (const auto& block : memory) {
-        out << block.start + block.size << "\n";
-        if (block.allocated) {
-            out << block.processName << "\n";
+        if (block.allocated) allocatedBlocks.push_back(block);
+    }
+    // Sort by start descending
+    std::sort(allocatedBlocks.begin(), allocatedBlocks.end(), [](const MemoryBlock& a, const MemoryBlock& b) {
+        return a.start > b.start;
+    });
+    for (const auto& block : allocatedBlocks) {
+        int upper = block.start + block.size;
+        int lower = block.start;
+        std::string px = "P";
+        size_t pos = block.processName.find_last_of('_');
+        if (pos != std::string::npos && pos + 1 < block.processName.size()) {
+            px += block.processName.substr(pos + 1);
+        } else {
+            px += block.processName; // fallback
         }
+        out << upper << "\n";
+        out << px << "\n";
+        out << lower << "\n\n";
     }
     out << "\n----start---- = 0\n";
     out.close();

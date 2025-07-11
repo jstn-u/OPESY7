@@ -222,7 +222,7 @@ void RRScheduler::processGeneratorFunc() {
         uint32_t cycle = getCpuCycles();
 
         // Only generate a process if batchProcessFreq > 0 and cycle is a multiple of batchProcessFreq
-        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0) {
+        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && curr_id < 100) {
             int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
             std::string processName = "auto_proc_" + std::to_string(curr_id);
             std::string timestamp = getCurrentTimestamp();
