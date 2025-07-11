@@ -9,7 +9,6 @@ extern int num_cpu;
 extern int curr_id;
 extern int min_ins;
 extern int max_ins;
-extern int mem_per_proc;
 
 FCFSScheduler::FCFSScheduler(int numCores) : numCores(numCores), running(false) {}
 
@@ -172,7 +171,7 @@ void FCFSScheduler::processGeneratorFunc() {
             int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
             std::string processName = "auto_proc_" + std::to_string(curr_id);
             std::string timestamp = getCurrentTimestamp();
-            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_per_proc);
+            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready");
             curr_id++;
             newProcess->createPrintCommands(totalInstructions);
             addProcess(newProcess);

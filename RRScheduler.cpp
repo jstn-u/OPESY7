@@ -8,6 +8,7 @@
 #include <ctime>
 #include <thread>
 #include <atomic>
+#include <iostream>
 
 extern int delay_per_exec;
 extern int num_cpu;
@@ -15,6 +16,7 @@ extern int curr_id;
 extern int min_ins;
 extern int max_ins;
 extern int mem_per_proc;
+extern int max_overall_mem;
 
 /*RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {}
@@ -25,7 +27,7 @@ RRScheduler::~RRScheduler() {
 
 RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {
-    memoryManager = new MemoryManager(16384, 4096);  // adjust to use your config values
+    memoryManager = new MemoryManager(max_overall_mem, mem_per_proc);  // adjust to use your config values
 }
 
 RRScheduler::~RRScheduler() {
@@ -52,7 +54,7 @@ void RRScheduler::start() {
         cpuThreads.emplace_back(&RRScheduler::cpuWorker, this, i);
     }
 
-    schedulerThread = std::thread(&RRScheduler::schedulerLoop, this);
+    //schedulerThread = std::thread(&RRScheduler::schedulerLoop, this);
 }
 
 void RRScheduler::stop() {
@@ -92,23 +94,6 @@ uint32_t RRScheduler::getCpuCycles() {
     return cpuCycles.load();
 }
 
-/*void RRScheduler::schedulerLoop() {
-    while (running) {
-        cpuCycles++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-}*/
-
-void RRScheduler::schedulerLoop() {
-    while (running) {
-        cpuCycles++;
-        if (cpuCycles % quantumCycles == 0) {
-            memoryManager->printSnapshot(cpuCycles);
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-}
-
 float RRScheduler::getCpuUtilization() {
     int totalCores = numCores;
     int busyCores = 0;
@@ -127,6 +112,7 @@ float RRScheduler::getCpuUtilization() {
 }
 
 void RRScheduler::cpuWorker(int coreId) {
+    static std::set<std::string> allocatedSet;  // Keeps track of processes already allocated
     while (running) {
         Process* proc = nullptr;
         int assignedCore = -1;
@@ -146,38 +132,48 @@ void RRScheduler::cpuWorker(int coreId) {
         }
 
         if (proc && assignedCore != -1) {
-            // Try to allocate memory for this process
-            if (!memoryManager->allocate(proc->getName())) {
-                // Not enough memory, requeue it
-                std::lock_guard<std::mutex> lock(queueMutex);
-                readyQueue.push(proc);
-                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
-                availableCores.insert(assignedCore);
-                cv.notify_all();
-                continue;
+            // Allocate memory if this process hasn't been allocated before
+            if (allocatedSet.find(proc->getName()) == allocatedSet.end()) {
+                if (!memoryManager->allocate(proc->getName())) {
+                    std::lock_guard<std::mutex> lock(queueMutex);
+                    readyQueue.push(proc);
+                    runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
+                    availableCores.insert(assignedCore);
+                    cv.notify_all();
+                    continue;
+                } else {
+                    allocatedSet.insert(proc->getName());
+                }
             }
 
             proc->setCpuId(assignedCore);
             int quantum = 0;
+            uint32_t targetCycle = cpuCycles.load();
 
             while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
+                // Wait until cpuCycles reaches targetCycle (simulate delay_per_exec)
                 if (delay_per_exec > 0) {
-                    auto start = std::chrono::steady_clock::now();
-                    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(delay_per_exec)) {
-                        // busy wait
+                    while (cpuCycles.load() < targetCycle) {
+                        cpuCycles++;
                     }
                 }
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
+
+                if (cpuCycles % quantumCycles == 0) {
+                    memoryManager->printSnapshot(cpuCycles);
+                }
+
+                cpuCycles++;
                 quantum++;
+                targetCycle = cpuCycles.load() + (delay_per_exec > 0 ? delay_per_exec : 1);
             }
 
             bool finished = proc->getCurrentLine() >= proc->getTotalLines();
 
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
-
                 runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
 
                 if (finished) {
@@ -185,6 +181,7 @@ void RRScheduler::cpuWorker(int coreId) {
                     proc->setStatus("Finished");
                     finishedProcesses.push_back(proc);
                     memoryManager->free(proc->getName());
+                    allocatedSet.erase(proc->getName());
                 } else {
                     readyQueue.push(proc);
                 }
@@ -195,70 +192,6 @@ void RRScheduler::cpuWorker(int coreId) {
         }
     }
 }
-
-/*void RRScheduler::cpuWorker(int coreId) {
-    //uint32_t currentCycleCount = getCpuCycles();
-    //uint32_t targetCycleCount = currentCycleCount + delay_per_exec;
-    while (running) {
-        Process* proc = nullptr;
-        int assignedCore = -1;
-        {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            cv.wait(lock, [this] { return (!readyQueue.empty() && !availableCores.empty()) || !running; });
-            if (!running) break;
-
-            if (!readyQueue.empty() && !availableCores.empty()) {
-                proc = readyQueue.front();
-                readyQueue.pop();
-                assignedCore = *availableCores.begin();
-                availableCores.erase(availableCores.begin());
-                runningProcesses.push_back(proc);
-            }
-        }
-
-        if (proc && assignedCore != -1) {
-            proc->setCpuId(assignedCore);
-            int quantum = 0;
-
-            while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
-                // Simulate delay before instruction execution
-                if (delay_per_exec > 0) {
-                    auto start = std::chrono::steady_clock::now();
-                    while (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(delay_per_exec)) {
-                        // Busy-wait: simulate CPU being held
-                    }
-                }
-
-                /* currentCycleCount = getCpuCycles();
-                if(delay_per_exec > 0){
-                    while(currentCycleCount < targetCycleCount){} // empty loop to wait for the next cycle
-                } */
-
-                /*proc->executeCurrentCommand(assignedCore, proc->getName(), "");
-                proc->moveCurrentLine();
-                quantum++;
-            }
-
-            bool finished = proc->getCurrentLine() >= proc->getTotalLines();
-
-            {
-                std::lock_guard<std::mutex> lock(queueMutex);
-                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
-
-                if (finished) {
-                    proc->setEndTime(getCurrentTimestamp());
-                    proc->setStatus("Finished");
-                    finishedProcesses.push_back(proc);
-                } else {
-                    readyQueue.push(proc);
-                }
-
-                availableCores.insert(assignedCore);
-                cv.notify_all();
-            }
-        }
-    }
-}*/
 
 void RRScheduler::startProcessGenerator(int batchFreq) {
     batchProcessFreq = batchFreq;
@@ -285,25 +218,24 @@ std::string RRScheduler::getCurrentTimestamp() {
 }
 
 void RRScheduler::processGeneratorFunc() {
-    uint32_t lastCycle = 0;
-
     while (processGenActive) {
         uint32_t cycle = getCpuCycles();
 
-        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && cycle != lastCycle) {
-            lastCycle = cycle;
-
+        // Only generate a process if batchProcessFreq > 0 and cycle is a multiple of batchProcessFreq
+        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0) {
             int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
             std::string processName = "auto_proc_" + std::to_string(curr_id);
             std::string timestamp = getCurrentTimestamp();
 
-            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_per_proc);
+            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready");
             curr_id++;
             newProcess->createPrintCommands(totalInstructions);
             addProcess(newProcess);
+
+            //std::cout << "[DEBUG] Created process: " << processName << " at cycle " << cycle << std::endl;
         }
 
-        //std::this_thread::sleep_for(std::chrono::milliseconds(1));  // avoid tight loop
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // avoid tight loop
     }
 }
 
