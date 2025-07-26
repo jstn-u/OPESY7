@@ -35,7 +35,8 @@ RRScheduler* rrScheduler = nullptr;
 int curr_id = 0;
 int max_overall_mem;
 int mem_per_frame;
-int mem_per_proc;
+int min_mem_per_proc;
+int max_mem_per_proc;
 
 std::map<std::string, Process*> readyProcesses;
 std::map<std::string, Process*> runningProcessesMap;
@@ -180,7 +181,8 @@ void loadConfig(const std::string& filename) {
             else if (key == "delay-per-exec") iss >> delay_per_exec;
             else if (key == "max-overall-mem") iss >> max_overall_mem;
             else if (key == "mem-per-frame") iss >> mem_per_frame;
-            else if (key == "mem-per-proc") iss >> mem_per_proc;
+            else if (key == "min-mem-per-proc") iss >> min_mem_per_proc;
+            else if (key == "max-mem-per-proc") iss >> max_mem_per_proc;
         }
     }
 
@@ -207,7 +209,7 @@ void loadConfig(const std::string& filename) {
     }
 } */
 
-void createSampleProcesses(){
+/* void createSampleProcesses(){
     for (int i = 0; i < 10; ++i) {
         std::string processName = std::string("process") + (i < 9 ? "0" : "") + std::to_string(i+1);
         Process* newProcess = new Process(curr_id, processName, 0, 100, getCurrentTimestamp(), "Attached");
@@ -215,7 +217,7 @@ void createSampleProcesses(){
         newProcess->createPrintCommands(100);
         fcfsScheduler->addProcess(newProcess);
     }
-}
+} */
 
 float getCpuUtilization() {
     if (scheduler == "fcfs") {
@@ -370,7 +372,8 @@ void headerText () {
                                 0,
                                 numInstructions,
                                 getCurrentTimestamp(),
-                                "Attached"
+                                "Attached",
+                                16
                             );
 
                             ++curr_id;
@@ -468,12 +471,12 @@ void headerText () {
             else if(command == "scheduler-stop") {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
-                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
-                } else if(rrScheduler && rrScheduler->isRunning()) {
+                    fcfsScheduler->stop();
+                    std::cout << "Scheduler stopped.\n";
+                }else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
-                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
+                    rrScheduler->stop();
+                    std::cout << "Scheduler stopped.\n";
                 }
                 else {
                     std::cout << "Scheduler is not running.\n";

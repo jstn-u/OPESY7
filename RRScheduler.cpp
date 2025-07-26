@@ -1,4 +1,5 @@
 #include "RRScheduler.h"
+#include "MemoryManager.h"
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -15,8 +16,10 @@ extern int num_cpu;
 extern int curr_id;
 extern int min_ins;
 extern int max_ins;
-extern int mem_per_proc;
+extern int min_mem_per_proc;
+extern int max_mem_per_proc;
 extern int max_overall_mem;
+extern int mem_per_frame;
 
 /*RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {}
@@ -27,7 +30,8 @@ RRScheduler::~RRScheduler() {
 
 RRScheduler::RRScheduler(int numCores, int quantumCycles)
     : numCores(numCores), quantumCycles(quantumCycles), running(false), processGenActive(false), cpuCycles(0) {
-    memoryManager = new MemoryManager(max_overall_mem, mem_per_proc);  // adjust to use your config values
+    // Use max_mem_per_proc for MemoryManager, but each process will have its own memSize
+    memoryManager = new MemoryManager(max_overall_mem, max_mem_per_proc, mem_per_frame);
 }
 
 RRScheduler::~RRScheduler() {
@@ -132,19 +136,9 @@ void RRScheduler::cpuWorker(int coreId) {
         }
 
         if (proc && assignedCore != -1) {
-            // Allocate memory if this process hasn't been allocated before
-            if (allocatedSet.find(proc->getName()) == allocatedSet.end()) {
-                if (!memoryManager->allocate(proc->getName())) {
-                    std::lock_guard<std::mutex> lock(queueMutex);
-                    readyQueue.push(proc);
-                    runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
-                    availableCores.insert(assignedCore);
-                    cv.notify_all();
-                    continue;
-                } else {
-                    allocatedSet.insert(proc->getName());
-                }
-            }
+
+            // DEMAND PAGING: Simulate a page access for this process (e.g., page 0 for now)
+            memoryManager->accessPage(proc->getName(), 0);
 
             proc->setCpuId(assignedCore);
             int quantum = 0;
@@ -160,11 +154,10 @@ void RRScheduler::cpuWorker(int coreId) {
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
-                std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
-                if (cpuCycles % quantumCycles == 0) {
+                /* if (cpuCycles % quantumCycles == 0) {
                     memoryManager->printSnapshot(cpuCycles);
-                }
+                } */
 
                 cpuCycles++;
                 quantum++;
@@ -219,24 +212,67 @@ std::string RRScheduler::getCurrentTimestamp() {
 }
 
 void RRScheduler::processGeneratorFunc() {
+    uint32_t lastCycle = -1;
     while (processGenActive) {
         uint32_t cycle = getCpuCycles();
 
         // Only generate a process if batchProcessFreq > 0 and cycle is a multiple of batchProcessFreq
-        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && curr_id < 100) {
-            int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
-            std::string processName = "auto_proc_" + std::to_string(curr_id);
-            std::string timestamp = getCurrentTimestamp();
+        if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && lastCycle != cycle && curr_id < 5) {
+            // Pick a random memory size for this process
+            int mem_for_proc = min_mem_per_proc + (std::rand() % (max_mem_per_proc - min_mem_per_proc + 1));
+            std::cout << "[DEBUG] Creating process with memory size: " << mem_for_proc << " bytes" << std::endl;
 
-            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready");
-            curr_id++;
-            newProcess->createPrintCommands(totalInstructions);
-            addProcess(newProcess);
+            int numPages = (mem_for_proc + mem_per_frame - 1) / mem_per_frame; // Calculate number of pages needed
+            std::cout << "[DEBUG] Number of pages needed: " << numPages << std::endl;
 
-            //std::cout << "[DEBUG] Created process: " << processName << " at cycle " << cycle << std::endl;
+            int totalFrames = max_overall_mem / mem_per_frame;
+            int usedFrames = 0;
+            {
+                std::lock_guard<std::mutex> lock(queueMutex);
+                // Count frames used by all processes in page tables
+                for (const auto& pt : memoryManager->getPageTables()) {
+                    for (const auto& entry : pt.second) {
+                        if (entry.valid) ++usedFrames;
+                    }
+                }
+            }
+            if (usedFrames + numPages <= totalFrames) {
+                int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
+                std::string processName = "auto_proc_" + std::to_string(curr_id);
+                std::string timestamp = getCurrentTimestamp();
+
+                Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_for_proc);
+                curr_id++;
+                newProcess->createPrintCommands(totalInstructions);
+                addProcess(newProcess);
+
+                // Force allocation of all pages for this process (for debugging and correctness)
+                for (int page = 0; page < numPages; ++page) {
+                    memoryManager->accessPage(newProcess->getName(), page);
+                }
+
+                lastCycle = cycle;
+                //std::cout << "[DEBUG] Created process: " << processName << " at cycle " << cycle << std::endl;
+            }
+            // Visualization: print frame table after each process creation attempt
+            {
+                const auto& frames = memoryManager->getFrames();
+                std::cout << "\n[Frame Table Visualization] (cycle " << cycle << ")\n";
+                std::cout << "Frame | Occupied | Process | Page\n";
+                std::cout << "-----------------------------------\n";
+                for (const auto& frame : frames) {
+                    std::cout << frame.frameNumber << "\t" << (frame.occupied ? "Yes" : "No") << "\t";
+                    if (frame.occupied) {
+                        std::cout << frame.processName << "\t" << frame.pageNumber;
+                    } else {
+                        std::cout << "-\t-";
+                    }
+                    std::cout << "\n";
+                }
+                std::cout << "-----------------------------------\n";
+            }
         }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // avoid tight loop
+        //std::this_thread::sleep_for(std::chrono::milliseconds(1)); // avoid tight loop
     }
 }
 

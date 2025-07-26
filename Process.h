@@ -13,6 +13,7 @@ class Instruction; // Forward declaration
 class Process{
 
 private:
+    int memSize = 0; // in bytes
     int pid;
     std::string name;
     int currentLine;
@@ -29,6 +30,13 @@ private:
     int sleepTicks = 0;
 
 public:
+    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize);
+    Process(int pid, std::string processName, int memSize);
+    Process();
+    ~Process() = default;
+    
+    void setMemSize(int size) { memSize = size; }
+    int getMemSize() const { return memSize; }
     //added
     uint16_t getVariable(const std::string& name) const;
     void setVariable(const std::string& name, uint16_t value);
@@ -39,11 +47,6 @@ public:
     void createPrintCommands(int totalIns);
     void executeCurrentCommand(int cpuId, std::string processName, std::string time);
     void addInstruction(Instruction* instr) { instructions.push_back(instr); }
-
-    Process();
-    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status);
-    Process(int pid, std::string processName);
-    ~Process() = default;
 
     int getPid() const { return pid; }
     const std::string& getName() const { return name; }

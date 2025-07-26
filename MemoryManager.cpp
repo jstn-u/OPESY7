@@ -1,3 +1,4 @@
+
 #include "MemoryManager.h"
 #include <fstream>
 #include <ctime>
@@ -5,9 +6,84 @@
 #include <iostream>
 #include <algorithm>
 
-MemoryManager::MemoryManager(int totalMem, int memPerProc)
-    : totalMem(totalMem), memPerProc(memPerProc) {
-    memory.push_back({0, totalMem, false, ""});
+MemoryManager::MemoryManager(int totalMem, int memPerProc, int memPerFrame)
+    : totalMem(totalMem), memPerProc(memPerProc), memPerFrame(memPerFrame) {
+    numFrames = totalMem / memPerFrame;
+    for (int i = 0; i < numFrames; ++i) {
+        frames.push_back({i, false, "", -1, false});
+    }
+}
+
+void MemoryManager::accessPage(const std::string& procName, int pageNumber) {
+    // If page is not in memory, handle page fault
+    if (pageTables[procName].size() <= pageNumber || !pageTables[procName][pageNumber].valid) {
+        handlePageFault(procName, pageNumber);
+    }
+    // else, page is in memory, access proceeds
+}
+
+void MemoryManager::handlePageFault(const std::string& procName, int pageNumber) {
+    int freeFrame = findFreeFrame();
+    if (freeFrame == -1) {
+        freeFrame = selectVictimFrame();
+        // Evict victim
+        Frame& victim = frames[freeFrame];
+        if (victim.occupied) {
+            evictPageToBackingStore(victim.processName, victim.pageNumber, freeFrame);
+            pageTables[victim.processName][victim.pageNumber].valid = false;
+        }
+    }
+    // Load the required page into the frame
+    loadPageFromBackingStore(procName, pageNumber, freeFrame);
+    frames[freeFrame].occupied = true;
+    frames[freeFrame].processName = procName;
+    frames[freeFrame].pageNumber = pageNumber;
+    frames[freeFrame].dirty = false;
+    // Update page table
+    if (pageTables[procName].size() <= pageNumber) pageTables[procName].resize(pageNumber + 1);
+    pageTables[procName][pageNumber].frameNumber = freeFrame;
+    pageTables[procName][pageNumber].valid = true;
+    pageTables[procName][pageNumber].dirty = false;
+}
+
+void MemoryManager::loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber) {
+    // Simulate loading a page from the backing store file
+    //std::cout << "[DemandPaging] Loading page " << pageNumber << " of process " << procName << " into frame " << frameNumber << std::endl;
+    // TODO: Implement actual file I/O
+}
+
+void MemoryManager::evictPageToBackingStore(const std::string& procName, int pageNumber, int frameNumber) {
+    // Simulate writing a page to the backing store file
+    //std::cout << "[DemandPaging] Evicting page " << pageNumber << " of process " << procName << " from frame " << frameNumber << std::endl;
+    // TODO: Implement actual file I/O
+}
+
+int MemoryManager::findFreeFrame() {
+    for (auto& frame : frames) {
+        if (!frame.occupied) return frame.frameNumber;
+    }
+    return -1;
+}
+
+int MemoryManager::selectVictimFrame() {
+    // Simple FIFO: pick the first occupied frame
+    for (auto& frame : frames) {
+        if (frame.occupied) return frame.frameNumber;
+    }
+    return 0; // fallback
+}
+
+void MemoryManager::printFrames() {
+    std::cout << "[Frames]" << std::endl;
+    for (const auto& frame : frames) {
+        std::cout << "Frame " << frame.frameNumber << ": ";
+        if (frame.occupied) {
+            std::cout << frame.processName << " page " << frame.pageNumber;
+        } else {
+            std::cout << "free";
+        }
+        std::cout << std::endl;
+    }
 }
 
 bool MemoryManager::allocate(const std::string& procName) {

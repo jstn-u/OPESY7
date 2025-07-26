@@ -4,13 +4,17 @@
 #include <random>
 #include <ctime>
 
-Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status)
-    : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {
-    this->cpuId = -1; // Default CPU core ID, can be set later
+
+Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
+    : memSize(memSize), pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {
+    this->cpuId = -1;
 }
 
-Process::Process() 
-    : pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0) {}
+Process::Process(int pid, std::string processName, int memSize)
+    : memSize(memSize), pid(pid), name(processName), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0) {}
+
+Process::Process()
+    : memSize(0), pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0) {}
 
 void Process::moveCurrentLine(){
     this->currentLine++;
