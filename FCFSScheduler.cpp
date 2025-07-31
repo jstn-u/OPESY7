@@ -171,7 +171,7 @@ void FCFSScheduler::processGeneratorFunc() {
             int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
             std::string processName = "auto_proc_" + std::to_string(curr_id);
             std::string timestamp = getCurrentTimestamp();
-            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", 16); // placeholder
+            Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", 0); //placeholder 
             curr_id++;
             newProcess->createPrintCommands(totalInstructions);
             addProcess(newProcess);

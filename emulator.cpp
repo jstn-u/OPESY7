@@ -339,6 +339,8 @@ void headerText () {
         "-'exit' to quit\n"
         "\n";
 
+        std::cout << min_mem_per_proc << " " << max_mem_per_proc << "\n";
+
         while(true) {
             std:: string input;
             std:: cout<< "Enter a command: ";
@@ -373,7 +375,7 @@ void headerText () {
                                 numInstructions,
                                 getCurrentTimestamp(),
                                 "Attached",
-                                16
+                                0 // placeholder
                             );
 
                             ++curr_id;
@@ -471,12 +473,12 @@ void headerText () {
             else if(command == "scheduler-stop") {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
-                    fcfsScheduler->stop();
-                    std::cout << "Scheduler stopped.\n";
-                }else if(rrScheduler && rrScheduler->isRunning()) {
+                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
+                    // Do NOT block here. Let the main loop continue.
+                } else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
-                    rrScheduler->stop();
-                    std::cout << "Scheduler stopped.\n";
+                    std::cout << "Process generator stopped. All existing processes will be finished.\n";
+                    // Do NOT block here. Let the main loop continue.
                 }
                 else {
                     std::cout << "Scheduler is not running.\n";

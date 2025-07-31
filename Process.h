@@ -8,12 +8,10 @@
 #include <functional>
 #include "PrintCommand.h"
 
-class Instruction; // Forward declaration
+class Instruction;
 
 class Process{
-
 private:
-    int memSize = 0; // in bytes
     int pid;
     std::string name;
     int currentLine;
@@ -24,19 +22,14 @@ private:
     std::time_t startTime;
     std::string endTime;
     std::vector<PrintCommand*> commands;
-    std::map<std::string, uint16_t> variables;
+    std::map<std::string, uint16_t> variables; // symbol table for variables
     std::vector<Instruction*> instructions;
     int instructionPointer = 0;
     int sleepTicks = 0;
+    int memSize = 0; // memory allocated to this process (bytes)
+
 
 public:
-    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize);
-    Process(int pid, std::string processName, int memSize);
-    Process();
-    ~Process() = default;
-    
-    void setMemSize(int size) { memSize = size; }
-    int getMemSize() const { return memSize; }
     //added
     uint16_t getVariable(const std::string& name) const;
     void setVariable(const std::string& name, uint16_t value);
@@ -48,12 +41,20 @@ public:
     void executeCurrentCommand(int cpuId, std::string processName, std::string time);
     void addInstruction(Instruction* instr) { instructions.push_back(instr); }
 
+    Process();
+    Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize);
+    Process(int pid, std::string processName, int memSize);
+    ~Process() = default;
+
+
     int getPid() const { return pid; }
     const std::string& getName() const { return name; }
     int getCurrentLine() const { return currentLine; }
     int getTotalLines() const { return totalLines; }
     const std::string& getTimestamp() const { return timestamp; }
     const std::string& getStatus() const { return status; }
+    int getMemSize() const { return memSize; }
+    void setMemSize(int size) { memSize = size; }
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();

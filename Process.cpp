@@ -4,17 +4,16 @@
 #include <random>
 #include <ctime>
 
-
 Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
-    : memSize(memSize), pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status) {
-    this->cpuId = -1;
+    : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), memSize(memSize) {
+    this->cpuId = -1; // Default CPU core ID, can be set later
 }
 
 Process::Process(int pid, std::string processName, int memSize)
-    : memSize(memSize), pid(pid), name(processName), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0) {}
+    : pid(pid), name(processName), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(memSize) {}
 
-Process::Process()
-    : memSize(0), pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0) {}
+Process::Process() 
+    : pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(0) {}
 
 void Process::moveCurrentLine(){
     this->currentLine++;
@@ -59,7 +58,7 @@ void Process::createPrintCommands(int totalIns) {
         return;
     }
     static const std::vector<std::string> instrTypes = {
-        "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR"
+        "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR", "READ", "WRITE"
     };
 
     int i = 0;
@@ -81,23 +80,39 @@ void Process::createPrintCommands(int totalIns) {
             msg = "PRINT(\"Hello world from " + name + "!\")";
         }
         else if (type == "DECLARE") {
-            std::string var = "var" + std::to_string(getRandomInt(1, 5));
+            std::string var = "var" + std::to_string(getRandomInt(1, 32));
             int value = getRandomInt(0, 65535);
             msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
         }
         else if (type == "ADD" || type == "SUBTRACT") {
-            std::string target = "var" + std::to_string(getRandomInt(1, 5));
+            std::string target = "var" + std::to_string(getRandomInt(1, 32));
             std::string src1 = (getRandomInt(0, 1) == 0)
                 ? std::to_string(getRandomInt(0, 100))
-                : "var" + std::to_string(getRandomInt(1, 5));
+                : "var" + std::to_string(getRandomInt(1, 32));
             std::string src2 = (getRandomInt(0, 1) == 0)
                 ? std::to_string(getRandomInt(0, 100))
-                : "var" + std::to_string(getRandomInt(1, 5));
+                : "var" + std::to_string(getRandomInt(1, 32));
             msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
         }
         else if (type == "SLEEP") {
             int ticks = getRandomInt(1, 50);
             msg = "SLEEP(" + std::to_string(ticks) + ")";
+        }
+        else if (type == "READ") {
+            std::string var = "var" + std::to_string(getRandomInt(1, 32));
+            // Generate a random 4-digit hex address in range 0x1000-0x1FFF
+            int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+            std::stringstream ss;
+            ss << "0x" << std::hex << addr;
+            msg = "READ " + var + " " + ss.str();
+        }
+        else if (type == "WRITE") {
+            // Generate a random 4-digit hex address in range 0x1000-0x1FFF
+            int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+            int value = getRandomInt(0, 65535);
+            std::stringstream ss;
+            ss << "0x" << std::hex << addr;
+            msg = "WRITE " + ss.str() + " " + std::to_string(value);
         }
 
         commands.push_back(new PrintCommand(msg));

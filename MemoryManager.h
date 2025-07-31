@@ -1,8 +1,27 @@
 #pragma once
-#include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
+#include <string>
+#include <cstdint>
+#include <shared_mutex>
 
+// --- Page Table Entry ---
+struct PageTableEntry {
+    int frameNumber = -1;
+    bool valid = false;
+    bool dirty = false;
+};
+
+// --- Frame structure ---
+struct Frame {
+    int frameNumber;
+    bool occupied;
+    std::string processName;
+    int pageNumber;
+    bool dirty;
+};
+
+// --- Memory Block (for external fragmentation & snapshotting) ---
 struct MemoryBlock {
     int start;
     int size;
@@ -10,51 +29,53 @@ struct MemoryBlock {
     std::string processName;
 };
 
-struct Frame {
-    int frameNumber;
-    bool occupied;
-    std::string processName;
-    int pageNumber; // which virtual page is loaded here
-    bool dirty;
-};
-
-struct PageTableEntry {
-    int frameNumber; // -1 if not in memory
-    bool valid;
-    bool dirty;
-};
+class Process;
 
 class MemoryManager {
 public:
-    // Getter for frames (for visualization/debugging)
-    const std::vector<Frame>& getFrames() const { return frames; }
-    // Getter for pageTables (for scheduler memory checks)
-    const std::map<std::string, std::vector<PageTableEntry>>& getPageTables() const { return pageTables; }
     MemoryManager(int totalMem, int memPerProc, int memPerFrame);
 
-    // Demand paging interface
+    // Core process memory management
     void accessPage(const std::string& procName, int pageNumber);
     void handlePageFault(const std::string& procName, int pageNumber);
+    void freeProcessMemory(const std::string& procName);
+
+    // Logging & stats
+    void logProcessMetadataToBackingStore(const Process* proc);
+    void printProcessSMI();
+    void printVMStat(uint32_t cpuCycles, int idleTicks, int activeTicks);
+    void printFrames();
+    void printSnapshot(int quantum);
+    int externalFragmentation();
+    const std::unordered_map<std::string, std::vector<PageTableEntry>>& getPageTables() const { return pageTables; }
+    const std::vector<Frame>& getFrames() const { return frames; }
     void loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber);
     void evictPageToBackingStore(const std::string& procName, int pageNumber, int frameNumber);
-    int findFreeFrame();
-    int selectVictimFrame(); // for page replacement
-    void printFrames();
-
-    // Old interface (for compatibility, can be removed later)
+    /*
     bool allocate(const std::string& procName);
     void free(const std::string& procName);
     void mergeFree();
-    int externalFragmentation();
-    void printSnapshot(int quantum);
+    */
 
 private:
-    std::vector<MemoryBlock> memory;
-    std::vector<Frame> frames;
+    mutable std::shared_mutex memoryMutex;
+
+    // Frame management
+    int findFreeFrame();
+    int selectVictimFrame();
+
+    // Internal state
     int totalMem;
     int memPerProc;
     int memPerFrame;
     int numFrames;
-    std::map<std::string, std::vector<PageTableEntry>> pageTables; // processName -> page table
-    std::string backingStoreFile = "csopesy-backing-store.txt";
+    int pagesPagedIn;
+    int pagesPagedOut;
+
+    std::vector<Frame> frames;
+    std::unordered_map<std::string, std::vector<PageTableEntry>> pageTables;
+
+    std::vector<MemoryBlock> memory;
+
+    const std::string backingStoreFile = "csopesy-backing_store.txt";
 };
