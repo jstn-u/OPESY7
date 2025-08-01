@@ -41,6 +41,12 @@ int getRandomInt(int min, int max) {
 void Process::createPrintCommands(int totalIns) {
     // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
     // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
+
+    // TODO : Change the code so that all instructions related to reading will search the variable table
+    // to check if the variable has been declared. If the variable does not exist
+    // (no variable has been declared in that memory address), it will return 0. Attempting to read
+    // from an invalid memory address will throw an error.
+
     if (name.find("auto_proc_") != 0) {
         variables["x"] = 0;
         int xVal = 0;

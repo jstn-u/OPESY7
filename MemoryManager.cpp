@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <sstream>
 
+// TODO : Make sure memory manager works by visualizing memory allocation (also implement vmstat
+// and process-smi output based on specs, just change my code lol i AI'd it)
+
 MemoryManager::MemoryManager(int totalMem, int memPerProc, int memPerFrame)
     : totalMem(totalMem), memPerProc(memPerProc), memPerFrame(memPerFrame), pagesPagedIn(0), pagesPagedOut(0) {
     numFrames = totalMem / memPerFrame;
