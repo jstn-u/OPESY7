@@ -176,6 +176,8 @@ void FCFSScheduler::processGeneratorFunc() {
             newProcess->createPrintCommands(totalInstructions);
             addProcess(newProcess);
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        cpuTick++;
     }
 }
 

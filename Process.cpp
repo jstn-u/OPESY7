@@ -38,6 +38,17 @@ int getRandomInt(int min, int max) {
     return dist(rng);
 }
 
+int getInstructionSize(const std::string& instr) {
+    if (instr.find("PRINT") == 0) return 1;
+    if (instr.find("DECLARE") == 0) return 2;
+    if (instr.find("ADD") == 0 || instr.find("SUBTRACT") == 0) return 3;
+    if (instr.find("SLEEP") == 0) return 1;
+    if (instr.find("FOR") == 0) return 3;
+    if (instr.find("READ") == 0) return 3;
+    if (instr.find("WRITE") == 0) return 2;
+    return 1;
+}
+
 void Process::createPrintCommands(int totalIns) {
     // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
     // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
@@ -72,6 +83,7 @@ void Process::createPrintCommands(int totalIns) {
         std::string type = instrTypes[getRandomInt(0, instrTypes.size() - 1)];
         std::string msg;
 
+        // 3 bytes (tentative)
         if (type == "FOR" && i + 3 <= totalIns) {
             int forCount = getRandomInt(1, 3);
             for (int j = 0; j < forCount && i < totalIns; ++j) {
@@ -82,14 +94,19 @@ void Process::createPrintCommands(int totalIns) {
             continue;
         }
 
+        // 1 byte
         if (type == "PRINT") {
             msg = "PRINT(\"Hello world from " + name + "!\")";
         }
+
+        // 2 byte
         else if (type == "DECLARE") {
             std::string var = "var" + std::to_string(getRandomInt(1, 32));
             int value = getRandomInt(0, 65535);
             msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
         }
+
+        // 3 byte
         else if (type == "ADD" || type == "SUBTRACT") {
             std::string target = "var" + std::to_string(getRandomInt(1, 32));
             std::string src1 = (getRandomInt(0, 1) == 0)
@@ -100,10 +117,14 @@ void Process::createPrintCommands(int totalIns) {
                 : "var" + std::to_string(getRandomInt(1, 32));
             msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
         }
+
+        // 1 byte
         else if (type == "SLEEP") {
             int ticks = getRandomInt(1, 50);
             msg = "SLEEP(" + std::to_string(ticks) + ")";
         }
+
+        // 3 bytes
         else if (type == "READ") {
             std::string var = "var" + std::to_string(getRandomInt(1, 32));
             // Generate a random 4-digit hex address in range 0x1000-0x1FFF
@@ -112,6 +133,8 @@ void Process::createPrintCommands(int totalIns) {
             ss << "0x" << std::hex << addr;
             msg = "READ " + var + " " + ss.str();
         }
+
+        // 2 bytes
         else if (type == "WRITE") {
             // Generate a random 4-digit hex address in range 0x1000-0x1FFF
             int addr = 0x1000 + getRandomInt(0, 0x0FFF);

@@ -1,3 +1,4 @@
+#include "Process.h"
 #include "RRScheduler.h"
 #include "MemoryManager.h"
 #include <algorithm>
@@ -239,6 +240,23 @@ void RRScheduler::processGeneratorFunc() {
                 Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_for_proc);
                 curr_id++;
                 newProcess->createPrintCommands(totalInstructions);
+
+                // Calculate total instruction memory needed
+                int totalInstrBytes = 0;
+                for (const std::string& cmd : newProcess->getAllLogs()) {
+                    totalInstrBytes += getInstructionSize(cmd);
+                }
+
+                // If not enough memory, terminate process and do not add
+                if (totalInstrBytes > mem_for_proc) {
+                    newProcess->setStatus("Terminated (Insufficient Memory)");
+                    newProcess->setEndTime(getCurrentTimestamp());
+                    // Optionally, add to finishedProcesses for reporting
+                    finishedProcesses.push_back(newProcess);
+                    // Optionally, delete newProcess if you don't want to keep it
+                    continue;
+                }
+
                 addProcess(newProcess);
 
                 // Force allocation of all pages for this process (for debugging and correctness)
@@ -283,7 +301,8 @@ void RRScheduler::processGeneratorFunc() {
                 std::cout << "-----------------------------------\n";
             } */
         }
-        //std::this_thread::sleep_for(std::chrono::milliseconds(1)); // avoid tight loop
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        cpuCycles++;
     }
 }
 

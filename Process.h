@@ -74,3 +74,5 @@ public:
     // RR/OS-style helpers
     bool isFinished() const { return currentLine >= totalLines; }
 };
+
+int getInstructionSize(const std::string& instr);

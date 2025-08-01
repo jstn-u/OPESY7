@@ -272,9 +272,16 @@ void screenLS(std::vector<Process*> running, std::vector<Process*> finished) {
     }
     outputBuffer << "\nFinished processes:\n";
     for (auto* proc : finished) {
-        outputBuffer << std::left << std::setw(12) << proc->getName()
+        std::string status = proc->getStatus();
+        if (status.find("Terminated") != std::string::npos) {
+            outputBuffer << std::left << std::setw(12) << proc->getName()
+                << " (" << proc->getEndTime() << ")"
+                << "    Terminated    " << proc->getCurrentLine() << " / " << proc->getTotalLines() << "\n";
+        } else {
+            outputBuffer << std::left << std::setw(12) << proc->getName()
                 << " (" << proc->getEndTime() << ")"
                 << "    Finished    " << proc->getTotalLines() << " / " << proc->getTotalLines() << "\n";
+        }
     }
     outputBuffer << "----------------------------------------\n";
 }
