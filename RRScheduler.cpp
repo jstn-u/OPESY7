@@ -243,7 +243,7 @@ void RRScheduler::processGeneratorFunc() {
 
                 // Calculate total instruction memory needed
                 int totalInstrBytes = 0;
-                for (const std::string& cmd : newProcess->getAllLogs()) {
+                for (const std::string& cmd : newProcess->getAllInstructions()) {
                     totalInstrBytes += getInstructionSize(cmd);
                 }
 
@@ -265,7 +265,6 @@ void RRScheduler::processGeneratorFunc() {
                 }
 
                 lastCycle = cycle;
-                //std::cout << "[DEBUG] Created process: " << processName << " at cycle " << cycle << std::endl;
             }else{
                 // Not enough frames: create process and immediately evict all its pages to backing store
                 int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));

@@ -17,6 +17,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <algorithm>
+#include <random> // Include for random number generation
 
 // Utility function to generate a random integer in [min, max]
 int randInt(int min, int max) {
@@ -522,7 +523,10 @@ void addAndRunProcess(Process* proc) {
     // The scheduler's addProcess already calls cv.notify_all(), so workers will wake up immediately
 }
 
+std::mt19937 rng; // Define the random number generator
+
 int main() {
+    rng.seed(static_cast<unsigned int>(std::time(nullptr))); // Seed once
     std::system("CLS");
     bool init = false;
     std::string in;

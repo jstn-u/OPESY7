@@ -3,6 +3,11 @@
 #include <iostream>
 #include <random>
 #include <ctime>
+#include <regex>
+#include <algorithm>
+#include <cctype>
+
+static std::mt19937 rng; // Declare at file scope
 
 Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
     : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), memSize(memSize) {
@@ -33,32 +38,110 @@ void Process::createPrintCommands(int totalIns) {
 }*/
 
 int getRandomInt(int min, int max) {
-    static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
     std::uniform_int_distribution<int> dist(min, max);
     return dist(rng);
 }
 
+std::string ltrim(const std::string& s);
+
 int getInstructionSize(const std::string& instr) {
-    if (instr.find("PRINT") == 0) return 1;
-    if (instr.find("DECLARE") == 0) return 2;
-    if (instr.find("ADD") == 0 || instr.find("SUBTRACT") == 0) return 3;
-    if (instr.find("SLEEP") == 0) return 1;
-    if (instr.find("FOR") == 0) return 3;
-    if (instr.find("READ") == 0) return 3;
-    if (instr.find("WRITE") == 0) return 2;
+    std::string s = ltrim(instr); // Use trimmed string for checks
+    if (s.find("PRINT") == 0) return 1;
+    if (s.find("DECLARE") == 0) return 2;
+    if (s.find("ADD") == 0 || s.find("SUBTRACT") == 0) return 3;
+    if (s.find("SLEEP") == 0) return 1;
+    if (s.find("FOR") == 0) {
+        // Parse FOR([body], count) with nested brackets
+        size_t bodyStart = s.find("[") + 1;
+        int bracketCount = 1;
+        size_t i = bodyStart;
+        while (i < s.size() && bracketCount > 0) {
+            if (s[i] == '[') bracketCount++;
+            else if (s[i] == ']') bracketCount--;
+            i++;
+        }
+        size_t bodyEnd = i - 1;
+        std::string body = s.substr(bodyStart, bodyEnd - bodyStart);
+        size_t countStart = s.find(",", bodyEnd) + 1;
+        size_t countEnd = s.find(")", countStart);
+        int count = std::stoi(s.substr(countStart, countEnd - countStart));
+        int bodySize = getInstructionSize(body);
+        return 1 + bodySize * count;
+    }
+    if (s.find("READ") == 0) return 3;
+    if (s.find("WRITE") == 0) return 2;
     return 1;
 }
 
+// Helper to generate a random instruction string, possibly a nested FOR
+std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int maxNesting = 3) {
+    static const std::vector<std::string> instrTypes = {
+        "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR", "READ", "WRITE"
+    };
+
+    std::string type = instrTypes[getRandomInt(0, instrTypes.size() - 1)];
+    std::string msg;
+
+    if (type == "FOR" && nestingLevel < maxNesting) {
+        int forCount = getRandomInt(1, 3);
+        int bodyBytes = 0;
+        std::string bodyInstr = generateRandomInstruction(nestingLevel + 1, bodyBytes, maxNesting);
+        msg = "FOR([" + bodyInstr + "], " + std::to_string(forCount) + ")";
+        // FOR size: 1 (FOR itself) + bodyBytes * forCount
+        instrBytes = 1 + bodyBytes * forCount;
+        return msg;
+    }
+
+    if (type == "PRINT") {
+        msg = "PRINT(\"Hello world from process!\")";
+        instrBytes = 1;
+    } else if (type == "DECLARE") {
+        std::string var = "var" + std::to_string(getRandomInt(1, 32));
+        int value = getRandomInt(0, 65535);
+        msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
+        instrBytes = 2;
+    } else if (type == "ADD" || type == "SUBTRACT") {
+        std::string target = "var" + std::to_string(getRandomInt(1, 32));
+        std::string src1 = (getRandomInt(0, 1) == 0)
+            ? std::to_string(getRandomInt(0, 100))
+            : "var" + std::to_string(getRandomInt(1, 32));
+        std::string src2 = (getRandomInt(0, 1) == 0)
+            ? std::to_string(getRandomInt(0, 100))
+            : "var" + std::to_string(getRandomInt(1, 32));
+        msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
+        instrBytes = 3;
+    } else if (type == "SLEEP") {
+        int ticks = getRandomInt(1, 50);
+        msg = "SLEEP(" + std::to_string(ticks) + ")";
+        instrBytes = 1;
+    } else if (type == "READ") {
+        std::string var = "var" + std::to_string(getRandomInt(1, 32));
+        int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+        std::stringstream ss;
+        ss << "0x" << std::hex << addr;
+        msg = "READ " + var + " " + ss.str();
+        instrBytes = 3;
+    } else if (type == "WRITE") {
+        int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+        int value = getRandomInt(0, 65535);
+        std::stringstream ss;
+        ss << "0x" << std::hex << addr;
+        msg = "WRITE " + ss.str() + " " + std::to_string(value);
+        instrBytes = 2;
+    }
+    return msg;
+}
+
 void Process::createPrintCommands(int totalIns) {
-    // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
-    // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
-
-    // TODO : Change the code so that all instructions related to reading will search the variable table
-    // to check if the variable has been declared. If the variable does not exist
-    // (no variable has been declared in that memory address), it will return 0. Attempting to read
-    // from an invalid memory address will throw an error.
-
     if (name.find("auto_proc_") != 0) {
+        // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
+        // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
+
+        // TODO : Change the code so that all instructions related to reading will search the variable table
+        // to check if the variable has been declared. If the variable does not exist
+        // (no variable has been declared in that memory address), it will return 0. Attempting to read
+        // from an invalid memory address will throw an error.
+
         variables["x"] = 0;
         int xVal = 0;
         for (int i = 0; i < totalIns; ++i) {
@@ -74,78 +157,13 @@ void Process::createPrintCommands(int totalIns) {
         }
         return;
     }
-    static const std::vector<std::string> instrTypes = {
-        "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR", "READ", "WRITE"
-    };
 
     int i = 0;
     while (i < totalIns) {
-        std::string type = instrTypes[getRandomInt(0, instrTypes.size() - 1)];
-        std::string msg;
-
-        // 3 bytes (tentative)
-        if (type == "FOR" && i + 3 <= totalIns) {
-            int forCount = getRandomInt(1, 3);
-            for (int j = 0; j < forCount && i < totalIns; ++j) {
-                msg = "FOR([PRINT(\"Hello world\")], " + std::to_string(forCount) + ")";
-                commands.push_back(new PrintCommand(msg));
-                ++i;
-            }
-            continue;
-        }
-
-        // 1 byte
-        if (type == "PRINT") {
-            msg = "PRINT(\"Hello world from " + name + "!\")";
-        }
-
-        // 2 byte
-        else if (type == "DECLARE") {
-            std::string var = "var" + std::to_string(getRandomInt(1, 32));
-            int value = getRandomInt(0, 65535);
-            msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
-        }
-
-        // 3 byte
-        else if (type == "ADD" || type == "SUBTRACT") {
-            std::string target = "var" + std::to_string(getRandomInt(1, 32));
-            std::string src1 = (getRandomInt(0, 1) == 0)
-                ? std::to_string(getRandomInt(0, 100))
-                : "var" + std::to_string(getRandomInt(1, 32));
-            std::string src2 = (getRandomInt(0, 1) == 0)
-                ? std::to_string(getRandomInt(0, 100))
-                : "var" + std::to_string(getRandomInt(1, 32));
-            msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
-        }
-
-        // 1 byte
-        else if (type == "SLEEP") {
-            int ticks = getRandomInt(1, 50);
-            msg = "SLEEP(" + std::to_string(ticks) + ")";
-        }
-
-        // 3 bytes
-        else if (type == "READ") {
-            std::string var = "var" + std::to_string(getRandomInt(1, 32));
-            // Generate a random 4-digit hex address in range 0x1000-0x1FFF
-            int addr = 0x1000 + getRandomInt(0, 0x0FFF);
-            std::stringstream ss;
-            ss << "0x" << std::hex << addr;
-            msg = "READ " + var + " " + ss.str();
-        }
-
-        // 2 bytes
-        else if (type == "WRITE") {
-            // Generate a random 4-digit hex address in range 0x1000-0x1FFF
-            int addr = 0x1000 + getRandomInt(0, 0x0FFF);
-            int value = getRandomInt(0, 65535);
-            std::stringstream ss;
-            ss << "0x" << std::hex << addr;
-            msg = "WRITE " + ss.str() + " " + std::to_string(value);
-        }
-
+        int instrBytes = 0;
+        std::string msg = generateRandomInstruction(0, instrBytes, 3);
         commands.push_back(new PrintCommand(msg));
-        ++i;
+        i++; // Always increment by 1 instruction
     }
 }
 
@@ -156,3 +174,9 @@ void Process::executeCurrentCommand(int cpuId, std::string processName, std::str
 }
 
 // setEndTime, getEndTime, getEndTimeString are now implemented inline in the header, so no additional implementation needed here.
+
+// Helper to trim leading spaces
+std::string ltrim(const std::string& s) {
+    size_t start = s.find_first_not_of(" \t\n\r");
+    return (start == std::string::npos) ? "" : s.substr(start);
+}

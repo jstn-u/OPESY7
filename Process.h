@@ -73,6 +73,13 @@ public:
 
     // RR/OS-style helpers
     bool isFinished() const { return currentLine >= totalLines; }
+    std::vector<std::string> getAllInstructions() const {
+        std::vector<std::string> instrs;
+        for (const auto* cmd : commands) {
+            instrs.push_back(cmd->getInstruction());
+        }
+        return instrs;
+    }
 };
 
 int getInstructionSize(const std::string& instr);

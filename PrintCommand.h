@@ -11,6 +11,7 @@ class PrintCommand{
         void execute(int cpuId, std::string processName, std::time_t endTime);
         std::string getToPrint() const;
         std::string getLog() const { return logEntry; }
+        std::string getInstruction() const { return toPrint; }
     private:
         std::string toPrint;
         std::string logEntry;
