@@ -78,8 +78,6 @@ void MemoryManager::accessPage(const std::string& procName, int pageNumber) {
     if (pageTables[procName].size() <= pageNumber || !pageTables[procName][pageNumber].valid) {
         lock.unlock();
         handlePageFault(procName, pageNumber);
-    } else{
-        // TODO : Since page is in memory, we can access it directly
     }
 }
 
@@ -176,35 +174,47 @@ void MemoryManager::evictPageToBackingStore(const std::string& procName, int pag
     std::vector<std::string> lines; 
     std::string line;
     std::string pageTag = procName + ":page" + std::to_string(pageNumber) + ":";
-    bool found = false;
+
+    // Step 1: Read existing lines, excluding the old version of this page (if any)
     if (inFile.is_open()) {
         while (std::getline(inFile, line)) {
             if (line.find(pageTag) == 0) {
-                found = true;
-                // skip old version
-                continue;
+                continue;  // Skip existing version
             }
-            lines.push_back(line);
+            lines.push_back(line);  // Keep other pages
         }
         inFile.close();
     }
-    // Simulate page data as a string of 'X' (could be actual frame data)
-    std::string pageData(memPerFrame, 'X');
-    // Add/replace the page line
+
+    // Step 2: Retrieve actual frame data if desired (currently uses placeholder 'X')
+    std::string pageData(memPerFrame, 'X'); // TODO: replace with actual data from frame if implemented
+
+    // Step 3: Add new version of this page
     lines.push_back(pageTag + pageData);
-    // Write all lines back (create file if missing)
-    static std::mutex backingStoreMutex;
-    std::lock_guard<std::mutex> lock(backingStoreMutex);
-    std::ofstream outFile(backingStoreFile, std::ios::trunc);
-    if (outFile.is_open()) {
-        for (const auto& l : lines) {
-            outFile << l << "\n";
+
+    // Step 4: Thread-safe write to backing store
+    {
+        static std::mutex backingStoreMutex;
+        std::lock_guard<std::mutex> lock(backingStoreMutex);
+
+        std::ofstream outFile(backingStoreFile, std::ios::trunc);
+        if (outFile.is_open()) {
+            for (const auto& l : lines) {
+                outFile << l << "\n";
+            }
+            outFile.close();
         }
-        outFile.close();
     }
+
+    // Step 5: Update stats
     pagesPagedOut++;
-    //std::cout << "[BackingStore] Evicted page " << pageNumber << " of process " << procName << " from frame " << frameNumber << std::endl;
+
+    // Optional: Logging for debug
+    /* std::cout << "[BackingStore] Evicted page " << pageNumber
+              << " of process " << procName
+              << " from frame " << frameNumber << std::endl; */
 }
+
 
 int MemoryManager::findFreeFrame() {
     for (auto& frame : frames) {
@@ -246,6 +256,17 @@ int MemoryManager::externalFragmentation() {
         if (!block.allocated) frag += block.size;
     }
     return frag;
+}
+
+int MemoryManager::getUsedMemory() const {
+    std::shared_lock lock(memoryMutex);
+    int usedFrames = 0;
+    for (const auto& frame : frames) {
+        if (frame.occupied) {
+            ++usedFrames;
+        }
+    }
+    return usedFrames * memPerFrame;
 }
 
 /* bool MemoryManager::allocate(const std::string& procName) {

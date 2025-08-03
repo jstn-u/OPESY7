@@ -51,6 +51,12 @@ public:
     const std::vector<Frame>& getFrames() const { return frames; }
     void loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber);
     void evictPageToBackingStore(const std::string& procName, int pageNumber, int frameNumber);
+    int getUsedMemory() const;
+    
+    // Frame management
+    int findFreeFrame();
+    int selectVictimFrame();
+    
     /*
     bool allocate(const std::string& procName);
     void free(const std::string& procName);
@@ -59,11 +65,6 @@ public:
 
 private:
     mutable std::shared_mutex memoryMutex;
-
-    // Frame management
-    int findFreeFrame();
-    int selectVictimFrame();
-
     // Internal state
     int totalMem;
     int memPerProc;

@@ -55,6 +55,7 @@ public:
     const std::string& getStatus() const { return status; }
     int getMemSize() const { return memSize; }
     void setMemSize(int size) { memSize = size; }
+    int getUsedMemory() const;
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
@@ -74,5 +75,5 @@ public:
     // RR/OS-style helpers
     bool isFinished() const { return currentLine >= totalLines; }
 };
-
 int getInstructionSize(const std::string& instr);
+

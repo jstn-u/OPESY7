@@ -34,8 +34,6 @@ private:
     void cpuWorker(int coreId);
     void processGeneratorFunc();
     std::string getCurrentTimestamp();
-    
-
 
     int numCores;
     int quantumCycles;

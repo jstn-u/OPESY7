@@ -131,9 +131,12 @@ void RRScheduler::cpuWorker(int coreId) {
             if (!readyQueue.empty() && !availableCores.empty()) {
                 proc = readyQueue.front();
                 readyQueue.pop();
-                assignedCore = *availableCores.begin();
-                availableCores.erase(availableCores.begin());
-                runningProcesses.push_back(proc);
+                assignedCore = coreId;
+
+                if (std::find(runningProcesses.begin(), runningProcesses.end(), proc) == runningProcesses.end()) {
+                    runningProcesses.push_back(proc);
+                }
+                availableCores.erase(coreId);
             }
         }
 
@@ -142,15 +145,22 @@ void RRScheduler::cpuWorker(int coreId) {
             int quantum = 0;
             uint32_t targetCycle = cpuCycles.load() + delay_per_exec;
 
+            // Demand paging: ensure required pages are loaded
+            int totalInstr = proc->getTotalLines();
+            int req_pages = (totalInstr * 2) / mem_per_frame;
+
+            for (int i = 0; i < req_pages; ++i) {
+                memoryManager->accessPage(proc->getName(), i);
+            }
+
+            // Execute instructions per quantum
             while (quantum < quantumCycles && proc->getCurrentLine() < proc->getTotalLines()) {
-                // Demand paging: determine which page to access based on current instruction line
-                // Assume 1 instruction per 2 bytes, and mem_per_frame is in bytes
-                int bytesPerInstruction = 2; // Each instruction is 2 bytes (simulate)
-                int address = proc->getCurrentLine() * bytesPerInstruction;
+                int address = proc->getCurrentLine() * 2;  // 2 bytes per instruction
                 int pageNumber = address / mem_per_frame;
+
                 memoryManager->accessPage(proc->getName(), pageNumber);
 
-                // Wait until cpuCycles reaches targetCycle (simulate delay_per_exec)
+                // Simulate delay
                 if (delay_per_exec > 0) {
                     while (cpuCycles.load() < targetCycle) {
                         cpuCycles++;
@@ -159,7 +169,6 @@ void RRScheduler::cpuWorker(int coreId) {
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
                 proc->moveCurrentLine();
-
                 cpuCycles++;
                 quantum++;
             }
@@ -168,15 +177,13 @@ void RRScheduler::cpuWorker(int coreId) {
 
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
-                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
-
                 if (finished) {
                     proc->setEndTime(getCurrentTimestamp());
                     proc->setStatus("Finished");
                     finishedProcesses.push_back(proc);
-                    //memoryManager->logProcessMetadataToBackingStore(proc);
                     memoryManager->freeProcessMemory(proc->getName());
                     allocatedSet.erase(proc->getName());
+                    runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
                 } else {
                     readyQueue.push(proc);
                 }
@@ -185,9 +192,9 @@ void RRScheduler::cpuWorker(int coreId) {
                 cv.notify_all();
             }
         }
-        //std::this_thread::sleep_for(std::chrono::milliseconds(25));
     }
 }
+
 
 void RRScheduler::startProcessGenerator(int batchFreq) {
     batchProcessFreq = batchFreq;
@@ -215,7 +222,7 @@ std::string RRScheduler::getCurrentTimestamp() {
 
 void RRScheduler::processGeneratorFunc() {
     uint32_t lastCycle = -1;
-    while (processGenActive) {
+    while (processGenActive && running) {
         uint32_t cycle = getCpuCycles();
         if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && lastCycle != cycle) {
             int mem_for_proc = min_mem_per_proc + (std::rand() % (max_mem_per_proc - min_mem_per_proc + 1));
@@ -231,21 +238,19 @@ void RRScheduler::processGeneratorFunc() {
                     }
                 }
             }
+
+            int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
+            std::string processName = "auto_proc_" + std::to_string(curr_id);
+            std::string timestamp = getCurrentTimestamp();
+
             // Checks if there are enough frames available
             if (usedFrames + numPages <= totalFrames) {
-                int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
-                std::string processName = "auto_proc_" + std::to_string(curr_id);
-                std::string timestamp = getCurrentTimestamp();
-
                 Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_for_proc);
                 curr_id++;
                 newProcess->createPrintCommands(totalInstructions);
 
                 // Calculate total instruction memory needed
-                int totalInstrBytes = 0;
-                for (const std::string& cmd : newProcess->getAllLogs()) {
-                    totalInstrBytes += getInstructionSize(cmd);
-                }
+                int totalInstrBytes = newProcess->getUsedMemory();
 
                 // If not enough memory, terminate process and do not add
                 if (totalInstrBytes > mem_for_proc) {
@@ -260,27 +265,31 @@ void RRScheduler::processGeneratorFunc() {
                 addProcess(newProcess);
 
                 // Force allocation of all pages for this process (for debugging and correctness)
-                for (int page = 0; page < numPages; ++page) {
+                /* for (int page = 0; page < numPages; ++page) {
                     memoryManager->accessPage(newProcess->getName(), page);
-                }
+                } */
 
                 lastCycle = cycle;
                 //std::cout << "[DEBUG] Created process: " << processName << " at cycle " << cycle << std::endl;
             }else{
-                // Not enough frames: create process and immediately evict all its pages to backing store
-                int totalInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
-                std::string processName = "auto_proc_" + std::to_string(curr_id);
-                std::string timestamp = getCurrentTimestamp();
-
-                Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Swapped", mem_for_proc);
+                Process* newProcess = new Process(curr_id, processName, 0, totalInstructions, timestamp, "Ready", mem_for_proc);
                 curr_id++;
                 newProcess->createPrintCommands(totalInstructions);
-                addProcess(newProcess);
 
-                // Evict all pages to backing store
-                for (int page = 0; page < numPages; ++page) {
-                    memoryManager->evictPageToBackingStore(newProcess->getName(), page, -1);
+                int totalInstrBytes = newProcess->getUsedMemory();
+
+                // If not enough memory, terminate process and do not add
+                if (totalInstrBytes > mem_for_proc) {
+                    newProcess->setStatus("Terminated (Insufficient Memory)");
+                    newProcess->setEndTime(getCurrentTimestamp());
+                    // Add to finishedProcesses for debugging
+                    finishedProcesses.push_back(newProcess);
+                    // Optionally, delete newProcess if you don't want to keep it
+                    continue;
                 }
+
+                //memoryManager->handlePageFault(newProcess->getName(), 0); // Handle page fault if not enough frames
+                //std::cout << "[DEBUG] Not enough frames available for new process at cycle " << cycle << std::endl;
             }
 
             // Visualization: print frame table after each process creation attempt

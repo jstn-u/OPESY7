@@ -438,6 +438,7 @@ void headerText () {
                         std::cout << outputBuffer.str();
                     }
                     else if(scheduler == "rr"){
+                        updateProcessMaps();
                         std::vector<Process*> running = rrScheduler->getRunningProcesses();
                         std::vector<Process*> finished = rrScheduler->getFinishedProcesses();
                         screenLS(running, finished);
@@ -481,11 +482,9 @@ void headerText () {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
                 } else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
                 }
                 else {
                     std::cout << "Scheduler is not running.\n";
