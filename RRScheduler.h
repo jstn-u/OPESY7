@@ -43,6 +43,7 @@ private:
     std::vector<Process*> finishedProcesses;
     std::vector<Process*> readyProcesses;
     std::mutex queueMutex;
+    std::mutex memMutex;
     std::condition_variable cv;
     std::atomic<uint32_t> cpuCycles{0};
     std::atomic<bool> running;

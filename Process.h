@@ -6,6 +6,8 @@
 #include <map>
 #include <variant>
 #include <functional>
+#include <mutex>
+#include <unordered_map>
 #include "PrintCommand.h"
 
 class Instruction;
@@ -27,7 +29,6 @@ private:
     int instructionPointer = 0;
     int sleepTicks = 0;
     int memSize = 0; // memory allocated to this process (bytes)
-
 
 public:
     //added

@@ -77,6 +77,7 @@ void MemoryManager::accessPage(const std::string& procName, int pageNumber) {
     std::shared_lock<std::shared_mutex> lock(memoryMutex);
     if (pageTables[procName].size() <= pageNumber || !pageTables[procName][pageNumber].valid) {
         lock.unlock();
+        //std::cout << "[Page Fault] Process: " << procName << ", Page: " << pageNumber << std::endl;
         handlePageFault(procName, pageNumber);
     }
 }
