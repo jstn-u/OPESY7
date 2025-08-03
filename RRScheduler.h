@@ -28,6 +28,9 @@ public:
     float getCpuUtilization();
     int getBusyCores();
     int getAvailableCores();
+    int getActiveTicks() const { return activeTicks.load(); }
+    int getIdleTicks() const { return idleTicks.load(); }
+    void printVMStat();
 
 private:
     MemoryManager* memoryManager;
@@ -52,6 +55,7 @@ private:
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
     bool tickRunning = false;
-    std::thread tickThread;
     std::thread schedulerThread;
+    std::atomic<int> activeTicks{0};
+    std::atomic<int> idleTicks{0};
 };

@@ -13,6 +13,7 @@
 #include "PrintCommand.h"
 #include "FCFSScheduler.h"
 #include "RRScheduler.h"
+#include "MemoryManager.h"
 #include <queue>
 #include <condition_variable>
 #include <atomic>
@@ -501,6 +502,11 @@ void headerText () {
                 delete fcfsScheduler;
                 delete rrScheduler;
                 exit(0);
+            }
+            else if (command == "vmstat"){
+                if(rrScheduler && rrScheduler->isRunning()){
+                    rrScheduler->printVMStat();
+                }
             }
             else {
                 std::cout << "Not a valid command. Try again\n";

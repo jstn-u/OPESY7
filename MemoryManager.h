@@ -19,6 +19,7 @@ struct Frame {
     std::string processName;
     int pageNumber;
     bool dirty;
+    int loadTime = 0;
 };
 
 // --- Memory Block (for external fragmentation & snapshotting) ---
@@ -36,8 +37,8 @@ public:
     MemoryManager(int totalMem, int memPerProc, int memPerFrame);
 
     // Core process memory management
-    void accessPage(const std::string& procName, int pageNumber);
-    void handlePageFault(const std::string& procName, int pageNumber);
+    std::string accessPage(const std::string& procName, int pageNumber);
+    std::string handlePageFault(const std::string& procName, int pageNumber);
     void freeProcessMemory(const std::string& procName);
 
     // Logging & stats
@@ -72,6 +73,7 @@ private:
     int numFrames;
     int pagesPagedIn;
     int pagesPagedOut;
+    int currentTick = 0;
 
     std::vector<Frame> frames;
     std::unordered_map<std::string, std::vector<PageTableEntry>> pageTables;
