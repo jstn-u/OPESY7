@@ -149,16 +149,6 @@ void MemoryManager::loadPageFromBackingStore(const std::string& procName, int pa
 }
 
 void MemoryManager::printProcessSMI() {
-    std::cout << "\n=== process-smi ===\n";
-    std::cout << "Frame | Occupied | Process   | Page\n";
-    std::cout << "--------------------------------------\n";
-    for (const auto& frame : frames) {
-        std::cout << frame.frameNumber << "\t"
-                  << (frame.occupied ? "Yes" : "No") << "\t\t"
-                  << (frame.occupied ? frame.processName : "-") << "\t\t"
-                  << (frame.occupied ? std::to_string(frame.pageNumber) : "-") << "\n";
-    }
-    std::cout << "--------------------------------------\n\n";
 }
 
 void MemoryManager::printVMStat(uint32_t cpuCycles, int idleTicks, int activeTicks) {

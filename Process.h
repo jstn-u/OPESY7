@@ -10,6 +10,11 @@
 #include <unordered_map>
 #include "PrintCommand.h"
 
+struct var_map{
+    uint16_t value;
+    int hex_addr;
+};
+
 class Instruction;
 
 class Process{
@@ -24,7 +29,7 @@ private:
     std::time_t startTime;
     std::string endTime;
     std::vector<PrintCommand*> commands;
-    std::map<std::string, uint16_t> variables; // symbol table for variables
+    std::map<var_map, uint16_t> variables; // symbol table for variables
     std::vector<Instruction*> instructions;
     int instructionPointer = 0;
     int sleepTicks = 0;

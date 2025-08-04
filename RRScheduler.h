@@ -31,6 +31,7 @@ public:
     int getActiveTicks() const { return activeTicks.load(); }
     int getIdleTicks() const { return idleTicks.load(); }
     void printVMStat();
+    void printProcessSMI();
 
 private:
     MemoryManager* memoryManager;
