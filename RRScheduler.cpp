@@ -156,7 +156,8 @@ void RRScheduler::cpuWorker(int coreId) {
                 }
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
-                //std::this_thread::sleep_for(std::chrono::milliseconds(10)); (to catch 100% or 0% cpu utilization)
+                //(to catch 100% or 0% cpu utilization)
+                std::this_thread::sleep_for(std::chrono::milliseconds(10)); 
                 proc->moveCurrentLine();
                 cpuCycles++;
                 activeTicks++;
@@ -303,13 +304,11 @@ void RRScheduler::printProcessSMI(){
     oss << "Running processes and memory usage:\n";
     oss << "-------------------------------------------\n";
     for(auto& proc : runningProcesses) {
-        std::string startAddr = "0x0040";
-        int memUsage = memoryManager->getProcessMemoryUsage(proc->getName());
-        oss << proc->getName() << " (" << memUsage << "KiB) \n";
-        /* oss << "Address Range: " << startAddr << "-" << "0x"
-              << std::setw(4) << std::setfill('0')
-              << std::hex << std::uppercase
-              << proc->getEndAddress() << "\n"; */
+        // Only show processes actually assigned to a core
+        if (proc->getCpuId() >= 0 && proc->getCpuId() < numCores && proc->getStatus() == "Running") {
+            int memUsage = memoryManager->getProcessMemoryUsage(proc->getName());
+            oss << proc->getName() << " (" << memUsage << "KiB) \n";
+        }
     }
     oss << "-------------------------------------------\n";
     std::cout << oss.str();
