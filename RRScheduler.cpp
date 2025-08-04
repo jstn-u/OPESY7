@@ -239,6 +239,20 @@ void RRScheduler::processGeneratorFunc() {
             if (usedFrames + numPages <= totalFrames) {
                 curr_id++;
                 newProcess->createPrintCommands(totalInstructions);
+
+                /* 
+                Calculate totalInstrBytes after instructions are generated
+                int totalInstrBytes = 0;
+                for (const std::string& cmd : newProcess->getAllInstructions()) {
+                    totalInstrBytes += getInstructionSize(cmd);
+                }
+
+                std::cout << "[DEBUG] " << processName
+                          << " | mem_for_proc=" << mem_for_proc
+                          << " | totalInstructions=" << totalInstructions
+                          << " | totalInstrBytes=" << totalInstrBytes << std::endl;
+                */
+
                 addProcess(newProcess);
                 lastCycle = cycle;
             }
