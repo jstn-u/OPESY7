@@ -105,18 +105,21 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
         instrBytes = 1;
     } else if (type == "DECLARE") {
         if (variables.size() >= 32) {
+            skip = true;
             return generateRandomInstruction(nestingLevel, instrBytes, maxNesting);
         }
-        int nextIndex = variables.size() + 1;
-        std::string var = "var" + std::to_string(nextIndex);
-        uint16_t value = getRandomInt(0, 65535);
-
-        // Add to variable map
-        var_map entry = { value, var };
-        variables[nextIndex] = entry;
-
-        msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
-        instrBytes = 2;
+        if(!skip){
+            int nextIndex = variables.size() + 1;
+            std::string var = "var" + std::to_string(nextIndex);
+            uint16_t value = getRandomInt(0, 65535);
+    
+            // Add to variable map
+            var_map entry = { value, var };
+            variables[nextIndex] = entry;
+    
+            msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
+            instrBytes = 2;
+        }
     } else if (type == "ADD" || type == "SUBTRACT") {
         std::string target = "var" + std::to_string(getRandomInt(1, 32));
         std::string src1 = (getRandomInt(0, 1) == 0)
@@ -184,7 +187,7 @@ void Process::executeCurrentCommand(int cpuId, std::string processName, std::str
 }
 
 int Process::getEndAddress() const{
-    int startAddress = 0x0000;
+    int startAddress = 0x0040;
     int endAddress = startAddress + memSize - 1; // memSize is mem-per-proc (bytes)
     return endAddress;
 }
