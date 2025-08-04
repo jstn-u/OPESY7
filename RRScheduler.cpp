@@ -279,3 +279,7 @@ int RRScheduler::getAvailableCores() {
 void RRScheduler::printVMStat(){
     memoryManager->printVMStat(cpuCycles.load(), idleTicks.load(), activeTicks.load());
 }
+
+void RRScheduler::printProcessSMI(){
+    memoryManager->printProcessSMI();
+}
