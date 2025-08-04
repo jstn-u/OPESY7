@@ -165,7 +165,6 @@ void RRScheduler::cpuWorker(int coreId) {
             }
 
             bool finished = proc->getCurrentLine() >= proc->getTotalLines();
-            runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
 
             {
                 std::lock_guard<std::mutex> lock(queueMutex);
@@ -180,6 +179,7 @@ void RRScheduler::cpuWorker(int coreId) {
                     readyQueue.push(proc);
                 }
 
+                runningProcesses.erase(std::remove(runningProcesses.begin(), runningProcesses.end(), proc), runningProcesses.end());
                 availableCores.insert(assignedCore);
                 cv.notify_all();
             }
