@@ -6,6 +6,8 @@
 #include <map>
 #include <variant>
 #include <functional>
+#include <mutex>
+#include <unordered_map>
 #include "PrintCommand.h"
 
 class Instruction;
@@ -27,7 +29,6 @@ private:
     int instructionPointer = 0;
     int sleepTicks = 0;
     int memSize = 0; // memory allocated to this process (bytes)
-
 
 public:
     //added
@@ -55,6 +56,7 @@ public:
     const std::string& getStatus() const { return status; }
     int getMemSize() const { return memSize; }
     void setMemSize(int size) { memSize = size; }
+    int getUsedMemory() const;
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
@@ -81,5 +83,5 @@ public:
         return instrs;
     }
 };
-
 int getInstructionSize(const std::string& instr);
+

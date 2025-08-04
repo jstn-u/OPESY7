@@ -28,14 +28,15 @@ public:
     float getCpuUtilization();
     int getBusyCores();
     int getAvailableCores();
+    int getActiveTicks() const { return activeTicks.load(); }
+    int getIdleTicks() const { return idleTicks.load(); }
+    void printVMStat();
 
 private:
     MemoryManager* memoryManager;
     void cpuWorker(int coreId);
     void processGeneratorFunc();
     std::string getCurrentTimestamp();
-    
-
 
     int numCores;
     int quantumCycles;
@@ -45,6 +46,7 @@ private:
     std::vector<Process*> finishedProcesses;
     std::vector<Process*> readyProcesses;
     std::mutex queueMutex;
+    std::mutex memMutex;
     std::condition_variable cv;
     std::atomic<uint32_t> cpuCycles{0};
     std::atomic<bool> running;
@@ -53,6 +55,7 @@ private:
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
     bool tickRunning = false;
-    std::thread tickThread;
     std::thread schedulerThread;
+    std::atomic<int> activeTicks{0};
+    std::atomic<int> idleTicks{0};
 };

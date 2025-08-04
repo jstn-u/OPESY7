@@ -8,9 +8,6 @@
 #include <algorithm>
 #include <sstream>
 
-// TODO : Make sure memory manager works by visualizing memory allocation (also implement vmstat
-// and process-smi output based on specs, just change my code lol i AI'd it)
-
 MemoryManager::MemoryManager(int totalMem, int memPerProc, int memPerFrame)
     : totalMem(totalMem), memPerProc(memPerProc), memPerFrame(memPerFrame), pagesPagedIn(0), pagesPagedOut(0) {
     numFrames = totalMem / memPerFrame;
@@ -72,20 +69,24 @@ void MemoryManager::freeProcessMemory(const std::string& procName) {
     }
 }
 
-void MemoryManager::accessPage(const std::string& procName, int pageNumber) {
+std::string MemoryManager::accessPage(const std::string& procName, int pageNumber) {
     // If page is not in memory, handle page fault
     std::shared_lock<std::shared_mutex> lock(memoryMutex);
+    std::string victimProc = "";
     if (pageTables[procName].size() <= pageNumber || !pageTables[procName][pageNumber].valid) {
         lock.unlock();
-        handlePageFault(procName, pageNumber);
-    } else{
-        // TODO : Since page is in memory, we can access it directly
+        //std::cout << "[Page Fault] Process: " << procName << ", Page: " << pageNumber << std::endl;
+        victimProc = handlePageFault(procName, pageNumber);
     }
+
+    return victimProc;
 }
 
-void MemoryManager::handlePageFault(const std::string& procName, int pageNumber) {
+std::string MemoryManager::handlePageFault(const std::string& procName, int pageNumber) {
     std::unique_lock<std::shared_mutex> lock(memoryMutex);
     int freeFrame = findFreeFrame();
+    std::string victimProc = "";
+
     if (freeFrame == -1) {
         freeFrame = selectVictimFrame();
         // Evict victim
@@ -93,6 +94,7 @@ void MemoryManager::handlePageFault(const std::string& procName, int pageNumber)
         if (victim.occupied) {
             evictPageToBackingStore(victim.processName, victim.pageNumber, freeFrame);
             pageTables[victim.processName][victim.pageNumber].valid = false;
+            victimProc = victim.processName;
         }
     }
     // Load the required page into the frame
@@ -101,11 +103,15 @@ void MemoryManager::handlePageFault(const std::string& procName, int pageNumber)
     frames[freeFrame].processName = procName;
     frames[freeFrame].pageNumber = pageNumber;
     frames[freeFrame].dirty = false;
+    frames[freeFrame].loadTime = currentTick++;
+
     // Update page table
     if (pageTables[procName].size() <= pageNumber) pageTables[procName].resize(pageNumber + 1);
     pageTables[procName][pageNumber].frameNumber = freeFrame;
     pageTables[procName][pageNumber].valid = true;
     pageTables[procName][pageNumber].dirty = false;
+
+    return victimProc;
 }
 
 void MemoryManager::loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber) {
@@ -176,34 +182,46 @@ void MemoryManager::evictPageToBackingStore(const std::string& procName, int pag
     std::vector<std::string> lines; 
     std::string line;
     std::string pageTag = procName + ":page" + std::to_string(pageNumber) + ":";
-    bool found = false;
+
+    // Step 1: Read existing lines, excluding the old version of this page (if any)
     if (inFile.is_open()) {
         while (std::getline(inFile, line)) {
             if (line.find(pageTag) == 0) {
-                found = true;
-                // skip old version
-                continue;
+                continue;  // Skip existing version
             }
-            lines.push_back(line);
+            lines.push_back(line);  // Keep other pages
         }
         inFile.close();
     }
-    // Simulate page data as a string of 'X' (could be actual frame data)
-    std::string pageData(memPerFrame, 'X');
-    // Add/replace the page line
+
+    // Step 2: Retrieve actual frame data if desired (currently uses placeholder 'X')
+    std::string pageData(memPerFrame, 'X'); // TODO: replace with actual data from frame if implemented
+
+    // Step 3: Add new version of this page
     lines.push_back(pageTag + pageData);
-    // Write all lines back (create file if missing)
-    static std::mutex backingStoreMutex;
-    std::lock_guard<std::mutex> lock(backingStoreMutex);
-    std::ofstream outFile(backingStoreFile, std::ios::trunc);
-    if (outFile.is_open()) {
-        for (const auto& l : lines) {
-            outFile << l << "\n";
+
+    // Step 4: Thread-safe write to backing store
+    {
+        static std::mutex backingStoreMutex;
+        std::lock_guard<std::mutex> lock(backingStoreMutex);
+
+        std::ofstream outFile(backingStoreFile, std::ios::trunc);
+        if (outFile.is_open()) {
+            for (const auto& l : lines) {
+                outFile << l << "\n";
+            }
+            outFile.close();
         }
-        outFile.close();
     }
+
+    // Step 5: Update stats
     pagesPagedOut++;
-    //std::cout << "[BackingStore] Evicted page " << pageNumber << " of process " << procName << " from frame " << frameNumber << std::endl;
+    //std::cout << "Pages Paged Out: " << pagesPagedOut << "\n";
+
+    // Optional: Logging for debug
+    /* std::cout << "[BackingStore] Evicted page " << pageNumber
+              << " of process " << procName
+              << " from frame " << frameNumber << std::endl; */
 }
 
 int MemoryManager::findFreeFrame() {
@@ -214,17 +232,15 @@ int MemoryManager::findFreeFrame() {
 }
 
 int MemoryManager::selectVictimFrame() {
-    // FIFO: pick the lowest-numbered occupied frame (oldest page in)
-    int oldestFrame = -1;
+    int victim = -1;
+    int oldestTime = INT_MAX;
     for (const auto& frame : frames) {
-        if (frame.occupied) {
-            if (oldestFrame == -1 || frame.frameNumber < oldestFrame) {
-                oldestFrame = frame.frameNumber;
-            }
+        if (frame.occupied && frame.loadTime < oldestTime) {
+            oldestTime = frame.loadTime;
+            victim = frame.frameNumber;
         }
     }
-    // If all frames are free, fallback to 0 (should not happen)
-    return oldestFrame == -1 ? 0 : oldestFrame;
+    return victim;
 }
 
 void MemoryManager::printFrames() {
@@ -246,6 +262,17 @@ int MemoryManager::externalFragmentation() {
         if (!block.allocated) frag += block.size;
     }
     return frag;
+}
+
+int MemoryManager::getUsedMemory() const {
+    std::shared_lock lock(memoryMutex);
+    int usedFrames = 0;
+    for (const auto& frame : frames) {
+        if (frame.occupied) {
+            ++usedFrames;
+        }
+    }
+    return usedFrames * memPerFrame;
 }
 
 /* bool MemoryManager::allocate(const std::string& procName) {

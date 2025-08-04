@@ -28,6 +28,14 @@ std::time_t Process::getStartTime() const {
     return startTime;
 }
 
+int Process::getUsedMemory() const {
+    int totalUsed = 0;
+    for (const std::string& cmd : this->getAllLogs()) {
+        totalUsed += getInstructionSize(cmd);
+    }
+    return totalUsed;
+}
+
 //was edited out 
 /*
 void Process::createPrintCommands(int totalIns) {
