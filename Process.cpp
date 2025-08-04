@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cctype>
 
-static std::mt19937 rng; // Declare at file scope
+static std::mt19937 rng;
 
 Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
     : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), memSize(memSize) {
@@ -28,10 +28,10 @@ std::time_t Process::getStartTime() const {
     return startTime;
 }
 
-int Process::getUsedMemory() const {
+int Process::getUsedMemory() {
     int totalUsed = 0;
     for (const std::string& cmd : this->getAllLogs()) {
-        totalUsed += getInstructionSize(cmd);
+        totalUsed += this->getInstructionSize(cmd);
     }
     return totalUsed;
 }
@@ -52,7 +52,7 @@ int getRandomInt(int min, int max) {
 
 std::string ltrim(const std::string& s);
 
-int getInstructionSize(const std::string& instr) {
+int Process::getInstructionSize(const std::string& instr) {
     std::string s = ltrim(instr); // Use trimmed string for checks
     if (s.find("PRINT") == 0) return 1;
     if (s.find("DECLARE") == 0) return 2;
@@ -82,20 +82,20 @@ int getInstructionSize(const std::string& instr) {
 }
 
 // Helper to generate a random instruction string, possibly a nested FOR
-std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int maxNesting = 3) {
+std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes, int maxNesting) {
     static const std::vector<std::string> instrTypes = {
         "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR", "READ", "WRITE"
     };
 
     std::string type = instrTypes[getRandomInt(0, instrTypes.size() - 1)];
     std::string msg;
+    bool skip = false;
 
     if (type == "FOR" && nestingLevel < maxNesting) {
         int forCount = getRandomInt(1, 3);
         int bodyBytes = 0;
         std::string bodyInstr = generateRandomInstruction(nestingLevel + 1, bodyBytes, maxNesting);
         msg = "FOR([" + bodyInstr + "], " + std::to_string(forCount) + ")";
-        // FOR size: 1 (FOR itself) + bodyBytes * forCount
         instrBytes = 1 + bodyBytes * forCount;
         return msg;
     }
@@ -104,8 +104,17 @@ std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int max
         msg = "PRINT(\"Hello world from process!\")";
         instrBytes = 1;
     } else if (type == "DECLARE") {
-        std::string var = "var" + std::to_string(getRandomInt(1, 32));
-        int value = getRandomInt(0, 65535);
+        if (variables.size() >= 32) {
+            return generateRandomInstruction(nestingLevel, instrBytes, maxNesting);
+        }
+        int nextIndex = variables.size() + 1;
+        std::string var = "var" + std::to_string(nextIndex);
+        uint16_t value = getRandomInt(0, 65535);
+
+        // Add to variable map
+        var_map entry = { value, var };
+        variables[nextIndex] = entry;
+
         msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
         instrBytes = 2;
     } else if (type == "ADD" || type == "SUBTRACT") {
@@ -137,20 +146,12 @@ std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int max
         msg = "WRITE " + ss.str() + " " + std::to_string(value);
         instrBytes = 2;
     }
+
     return msg;
 }
 
 void Process::createPrintCommands(int totalIns) {
     if (name.find("auto_proc_") != 0) {
-        // If this process is manually added (screen -s <process_name>), use alternating PRINT/ADD logic
-        // We'll assume that if the process name does not start with "auto_proc_", it's a manual process
-
-        // TODO : Change the code so that all instructions related to reading will search the variable table
-        // to check if the variable has been declared. If the variable does not exist
-        // (no variable has been declared in that memory address), it will return 0. Attempting to read
-        // from an invalid memory address will throw an error.
-
-        //variables["x"] = 0;
         int xVal = 0;
         for (int i = 0; i < totalIns; ++i) {
             std::string msg;
@@ -167,6 +168,7 @@ void Process::createPrintCommands(int totalIns) {
     }
 
     int i = 0;
+    int var_count = 0;
     while (i < totalIns) {
         int instrBytes = 0;
         std::string msg = generateRandomInstruction(0, instrBytes, 3);
@@ -183,7 +185,7 @@ void Process::executeCurrentCommand(int cpuId, std::string processName, std::str
 
 int Process::getEndAddress() const{
     int startAddress = 0x0000;
-    int endAddress = startAddress + memSize - 1;
+    int endAddress = startAddress + memSize - 1; // memSize is mem-per-proc (bytes)
     return endAddress;
 }
 

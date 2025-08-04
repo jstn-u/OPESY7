@@ -61,8 +61,10 @@ public:
     const std::string& getStatus() const { return status; }
     int getMemSize() const { return memSize; }
     void setMemSize(int size) { memSize = size; }
-    int getUsedMemory() const;
+    int getUsedMemory();
     int getEndAddress() const;
+    int getInstructionSize(const std::string& instr);
+    std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int maxNesting = 3);
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
@@ -89,5 +91,4 @@ public:
         return instrs;
     }
 };
-int getInstructionSize(const std::string& instr);
 
