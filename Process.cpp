@@ -11,14 +11,31 @@ static std::mt19937 rng;
 
 Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
     : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), memSize(memSize) {
-    this->cpuId = -1; // Default CPU core ID, can be set later
+    this->cpuId = -1;
+    // Initialize all 32 variables
+    for (int i = 1; i <= 32; ++i) {
+        std::string var = "var" + std::to_string(i);
+        variables[i] = {0, var, false};
+    }
 }
 
 Process::Process(int pid, std::string processName, int memSize)
-    : pid(pid), name(processName), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(memSize) {}
+    : pid(pid), name(processName), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(memSize) {
+    // Initialize all 32 variables
+    for (int i = 1; i <= 32; ++i) {
+        std::string var = "var" + std::to_string(i);
+        variables[i] = {0, var, false};
+    }
+}
 
 Process::Process() 
-    : pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(0) {}
+    : pid(0), name(""), currentLine(0), totalLines(0), timestamp(""), status(""), cpuId(-1), startTime(0), memSize(0) {
+    // Initialize all 32 variables
+    for (int i = 1; i <= 32; ++i) {
+        std::string var = "var" + std::to_string(i);
+        variables[i] = {0, var, false};
+    }
+}
 
 void Process::moveCurrentLine(){
     this->currentLine++;
@@ -104,35 +121,39 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
         msg = "PRINT(\"Hello world from process!\")";
         instrBytes = 1;
     } else if (type == "DECLARE") {
-        if (variables.size() >= 32) {
-            skip = true;
-            return generateRandomInstruction(nestingLevel, instrBytes, maxNesting);
-        }
-        if(!skip){
-            int nextIndex = variables.size() + 1;
-            std::string var = "var" + std::to_string(nextIndex);
-            uint16_t value = getRandomInt(0, 65535);
-
-            // Add to variable map
-            var_map entry = { value, var };
-            variables[nextIndex] = entry;
-
-            // Add to declaredVars if not already present
-            if (std::find(declaredVars.begin(), declaredVars.end(), var) == declaredVars.end()) {
-                declaredVars.push_back(var);
+        // Find the first undeclared variable in ascending order
+        int nextIndex = -1;
+        for (int i = 1; i <= 32; ++i) {
+            if (!variables[i].declared) {
+                nextIndex = i;
+                break;
             }
-
-            msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
-            instrBytes = 2;
         }
+        if (nextIndex == -1) {
+            instrBytes = 0;
+            return ""; // All variables already declared, skip
+        }
+        std::string var = "var" + std::to_string(nextIndex);
+        uint16_t value = getRandomInt(0, 65535);
+        variables[nextIndex].value = value;
+        variables[nextIndex].declared = true; // Mark as declared
+        msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
+        instrBytes = 2;
     } else if (type == "ADD" || type == "SUBTRACT") {
-        std::string target = "var" + std::to_string(getRandomInt(1, 32));
+        int targetIdx = getRandomInt(1, 32);
+        int src1Idx = getRandomInt(1, 32);
+        int src2Idx = getRandomInt(1, 32);
+        std::string target = "var" + std::to_string(targetIdx);
         std::string src1 = (getRandomInt(0, 1) == 0)
             ? std::to_string(getRandomInt(0, 100))
-            : "var" + std::to_string(getRandomInt(1, 32));
+            : "var" + std::to_string(src1Idx);
         std::string src2 = (getRandomInt(0, 1) == 0)
             ? std::to_string(getRandomInt(0, 100))
-            : "var" + std::to_string(getRandomInt(1, 32));
+            : "var" + std::to_string(src2Idx);
+        // Mark all variables used as declared (with value 0 if not already)
+        variables[targetIdx].declared = true;
+        variables[src1Idx].declared = true;
+        variables[src2Idx].declared = true;
         msg = type + "(" + target + ", " + src1 + ", " + src2 + ")";
         instrBytes = 3;
     } else if (type == "SLEEP") {
@@ -140,14 +161,17 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
         msg = "SLEEP(" + std::to_string(ticks) + ")";
         instrBytes = 1;
     } else if (type == "READ") {
-        // Only generate READ if there are declared variables
-        if (declaredVars.empty()) {
+        // Collect declared variables
+        std::vector<std::string> usableVars;
+        for (const auto& [idx, v] : variables) {
+            if (v.declared) usableVars.push_back(v.varname);
+        }
+        if (usableVars.empty()) {
             instrBytes = 0;
             return ""; // Skip generating this instruction
         }
-        // Pick a random declared variable as destination
-        int varIdx = getRandomInt(0, declaredVars.size() - 1);
-        std::string var = declaredVars[varIdx];
+        int varIdx = getRandomInt(0, usableVars.size() - 1);
+        std::string var = usableVars[varIdx];
 
         int baseAddr = 0x0040;
         int maxEvenAddr = baseAddr + memSize - 2; // Exclude the last even address

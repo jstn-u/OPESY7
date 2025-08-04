@@ -13,6 +13,7 @@
 struct var_map{
     uint16_t value;
     std::string varname;
+    bool declared = false;
 };
 
 class Instruction;
