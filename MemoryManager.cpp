@@ -21,17 +21,6 @@ MemoryManager::MemoryManager(int totalMem, int memPerProc, int memPerFrame)
     }
 }
 
-void MemoryManager::logProcessMetadataToBackingStore(const Process* proc) {
-    std::unique_lock<std::shared_mutex> lock(memoryMutex);
-    std::ofstream outFile(backingStoreFile, std::ios::app);
-    if (outFile.is_open()) {
-        outFile << "ID " << proc->getPid() << "," << proc->getName() << "," << proc->getMemSize()
-                << "," << proc->getTotalLines() << "," << proc->getCurrentLine()
-                << "," << proc->getStartTime() << ",-1" << std::endl;
-        outFile.close();
-    }
-}
-
 // Free all frames, page table entries, and backing store entries for a process
 void MemoryManager::freeProcessMemory(const std::string& procName) {
     // 1. Free all frames belonging to this process
@@ -73,12 +62,12 @@ std::string MemoryManager::accessPage(const std::string& procName, int pageNumbe
     // If page is not in memory, handle page fault
     std::shared_lock<std::shared_mutex> lock(memoryMutex);
     std::string victimProc = "";
+
     if (pageTables[procName].size() <= pageNumber || !pageTables[procName][pageNumber].valid) {
         lock.unlock();
         //std::cout << "[Page Fault] Process: " << procName << ", Page: " << pageNumber << std::endl;
         victimProc = handlePageFault(procName, pageNumber);
     }
-
     return victimProc;
 }
 
@@ -146,9 +135,6 @@ void MemoryManager::loadPageFromBackingStore(const std::string& procName, int pa
     // For simulation, you could store pageData in a frameData map if needed
     pagesPagedIn++;
     //std::cout << "[BackingStore] Loaded page " << pageNumber << " of process " << procName << " into frame " << frameNumber << std::endl;
-}
-
-void MemoryManager::printProcessSMI() {
 }
 
 void MemoryManager::printVMStat(uint32_t cpuCycles, int idleTicks, int activeTicks) {
@@ -263,6 +249,17 @@ int MemoryManager::getUsedMemory() const {
         }
     }
     return usedFrames * memPerFrame;
+}
+
+int MemoryManager::getProcessMemoryUsage(const std::string& procName) const {
+    std::shared_lock<std::shared_mutex> lock(memoryMutex);
+    int count = 0;
+    for (const auto& frame : frames) {
+        if (frame.occupied && frame.processName == procName) {
+            ++count;
+        }
+    }
+    return count * memPerFrame;
 }
 
 /* bool MemoryManager::allocate(const std::string& procName) {

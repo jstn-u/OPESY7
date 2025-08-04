@@ -53,6 +53,7 @@ public:
     void loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber);
     void evictPageToBackingStore(const std::string& procName, int pageNumber, int frameNumber);
     int getUsedMemory() const;
+    int getProcessMemoryUsage(const std::string& procName) const;
     
     // Frame management
     int findFreeFrame();

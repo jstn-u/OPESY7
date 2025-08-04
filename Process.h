@@ -12,7 +12,7 @@
 
 struct var_map{
     uint16_t value;
-    int hex_addr;
+    std::string varname;
 };
 
 class Instruction;
@@ -29,7 +29,7 @@ private:
     std::time_t startTime;
     std::string endTime;
     std::vector<PrintCommand*> commands;
-    std::map<var_map, uint16_t> variables; // symbol table for variables
+    std::map<int, var_map> variables; // symbol table for variables
     std::vector<Instruction*> instructions;
     int instructionPointer = 0;
     int sleepTicks = 0;
@@ -62,6 +62,7 @@ public:
     int getMemSize() const { return memSize; }
     void setMemSize(int size) { memSize = size; }
     int getUsedMemory() const;
+    int getEndAddress() const;
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();

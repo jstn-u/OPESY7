@@ -509,6 +509,13 @@ void headerText () {
                     rrScheduler->printVMStat();
                 }
             }
+            else if (command == "process-smi"){
+                if(rrScheduler && rrScheduler->isRunning()){
+                    rrScheduler->printProcessSMI();
+                } else {
+                    std::cout << "No scheduler is running.\n";
+                }
+            }
             else {
                 std::cout << "Not a valid command. Try again\n";
             }

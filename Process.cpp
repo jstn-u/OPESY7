@@ -124,13 +124,13 @@ std::string generateRandomInstruction(int nestingLevel, int& instrBytes, int max
         instrBytes = 1;
     } else if (type == "READ") {
         std::string var = "var" + std::to_string(getRandomInt(1, 32));
-        int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+        int addr = 0x0000 + getRandomInt(0, 0x0FFF);
         std::stringstream ss;
         ss << "0x" << std::hex << addr;
         msg = "READ " + var + " " + ss.str();
         instrBytes = 3;
     } else if (type == "WRITE") {
-        int addr = 0x1000 + getRandomInt(0, 0x0FFF);
+        int addr = 0x0000 + getRandomInt(0, 0x0FFF);
         int value = getRandomInt(0, 65535);
         std::stringstream ss;
         ss << "0x" << std::hex << addr;
@@ -150,7 +150,7 @@ void Process::createPrintCommands(int totalIns) {
         // (no variable has been declared in that memory address), it will return 0. Attempting to read
         // from an invalid memory address will throw an error.
 
-        variables["x"] = 0;
+        //variables["x"] = 0;
         int xVal = 0;
         for (int i = 0; i < totalIns; ++i) {
             std::string msg;
@@ -179,6 +179,12 @@ void Process::executeCurrentCommand(int cpuId, std::string processName, std::str
     if (currentLine < commands.size()) {
         commands[currentLine]->execute(cpuId, processName, std::time(nullptr));
     }
+}
+
+int Process::getEndAddress() const{
+    int startAddress = 0x0000;
+    int endAddress = startAddress + memSize - 1;
+    return endAddress;
 }
 
 // setEndTime, getEndTime, getEndTimeString are now implemented inline in the header, so no additional implementation needed here.

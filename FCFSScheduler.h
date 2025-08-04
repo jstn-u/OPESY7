@@ -7,6 +7,7 @@
 #include <atomic>
 #include <set>
 #include "Process.h"
+#include "MemoryManager.h"
 
 class FCFSScheduler {
 public:
@@ -44,9 +45,12 @@ private:
     std::atomic<bool> running;
     std::set<int> availableCores;
     std::atomic<bool> processGenActive{false};
+    std::atomic<uint32_t> cpuCycles{0};
     std::atomic<uint32_t> globalCpuCycles{0};
     std::atomic<int> cpuTick{0};
     std::thread processGeneratorThread;
     int batchProcessFreq = 0;
     int curr_id;
+    std::atomic<int> activeTicks{0};
+    std::atomic<int> idleTicks{0};
 };

@@ -156,6 +156,7 @@ void RRScheduler::cpuWorker(int coreId) {
                 }
 
                 proc->executeCurrentCommand(assignedCore, proc->getName(), "");
+                //std::this_thread::sleep_for(std::chrono::milliseconds(10)); (to catch 100% or 0% cpu utilization)
                 proc->moveCurrentLine();
                 cpuCycles++;
                 activeTicks++;
@@ -241,6 +242,8 @@ void RRScheduler::processGeneratorFunc() {
                 newProcess->createPrintCommands(totalInstructions);
                 addProcess(newProcess);
                 lastCycle = cycle;
+            }else{
+                
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -267,5 +270,30 @@ void RRScheduler::printVMStat(){
 }
 
 void RRScheduler::printProcessSMI(){
-    memoryManager->printProcessSMI();
+    int usedMemory = memoryManager->getUsedMemory();
+    int memoryUsage = (usedMemory / max_overall_mem) * 100;
+
+    std::stringstream oss;
+    oss << "-------------------------------------------\n";
+    oss << "| PROCESS-SMI V01.00 Driver Version: 01.00 |\n";
+    oss << "|             PAGING ALLOCATOR             |\n";
+    oss << "-------------------------------------------\n";
+    oss << std::fixed << std::setprecision(2);
+    oss << "CPU-Util: " << getCpuUtilization() << "%\n";
+    oss << "Memory Usage: " << usedMemory << "KiB / " << max_overall_mem << "KiB\n";
+    oss << "Memory Util: " << memoryUsage << "%\n";
+    oss << "\n===========================================\n";
+    oss << "Running processes and memory usage:\n";
+    oss << "-------------------------------------------\n";
+    for(auto& proc : runningProcesses) {
+        std::string startAddr = "0x0000";
+        int memUsage = memoryManager->getProcessMemoryUsage(proc->getName());
+        oss << proc->getName() << " (" << memUsage << "KiB) ";
+        oss << "Address Range: " << startAddr << "-" << "0x"
+              << std::setw(4) << std::setfill('0')
+              << std::hex << std::uppercase
+              << proc->getEndAddress() << "\n";
+    }
+    oss << "-------------------------------------------\n";
+    std::cout << oss.str();
 }
