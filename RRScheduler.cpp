@@ -243,7 +243,7 @@ void RRScheduler::processGeneratorFunc() {
                 addProcess(newProcess);
                 lastCycle = cycle;
             }else{
-                
+
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -286,7 +286,7 @@ void RRScheduler::printProcessSMI(){
     oss << "Running processes and memory usage:\n";
     oss << "-------------------------------------------\n";
     for(auto& proc : runningProcesses) {
-        std::string startAddr = "0x0000";
+        std::string startAddr = "0x0040";
         int memUsage = memoryManager->getProcessMemoryUsage(proc->getName());
         oss << proc->getName() << " (" << memUsage << "KiB) ";
         oss << "Address Range: " << startAddr << "-" << "0x"
