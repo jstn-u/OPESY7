@@ -373,50 +373,46 @@ void headerText () {
 
                 if ((option == "-r" || option == "-s" || option == "-c") && !sessionName.empty()) {
                     if (option == "-s") {
-                        Process *proc = findProcess(sessionName);
-                        if (proc == nullptr) {
-                            int numInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
+                        std::string procSize;
+                        iss >> procSize;
+                        int memSize = std::stoi(procSize);
 
-                            Process* newSession = new Process(
-                                curr_id,
-                                sessionName,
-                                0,
-                                numInstructions,
-                                getCurrentTimestamp(),
-                                "Attached",
-                                0 // placeholder
-                            );
+                        if((memSize & (memSize - 1)) == 0){
+                            std::cout << "Memory is valid.\n";
 
-                            ++curr_id;
-                            // Add to scheduler
-                            if(scheduler == "fcfs"){
-                                fcfsScheduler->addProcess(newSession);
-                            }else if(scheduler == "rr"){
-                                rrScheduler->addProcess(newSession);
-                            }
-                            std::system("CLS");
-                            std::cout << "Session '" << sessionName << "' created.\n\n";
-                            drawScreen(sessionName);
-                            executeScreen(sessionName);
-                            headerText();
-                            // Helper to continuously print x for a process in a separate thread
-                            std::thread([proc]() {
-                                int xVal = 0;
-                                int line = 0;
-                                while (line < proc->getTotalLines()) {
-                                    if (line % 2 == 0) {
-                                        std::cout << proc->getName() << ": PRINT(Value from: " << xVal << ")" << std::endl;
-                                    } else {
-                                        int addVal = randInt(1, 10);
-                                        xVal += addVal;
-                                    }
-                                    ++line;
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(500)); // adjust as needed
+                            Process *proc = findProcess(sessionName);
+                            if (proc == nullptr) {
+                                int numInstructions = min_ins + (std::rand() % (max_ins - min_ins + 1));
+
+                                Process* newSession = new Process(
+                                    curr_id,
+                                    sessionName,
+                                    0,
+                                    numInstructions,
+                                    getCurrentTimestamp(),
+                                    "Ready",
+                                    memSize
+                                );
+
+                                newSession->createPrintCommands(numInstructions);
+                                ++curr_id;
+                                // Add to scheduler
+                                if(scheduler == "fcfs"){
+                                    fcfsScheduler->addProcess(newSession);
+                                }else if(scheduler == "rr"){
+                                    rrScheduler->addProcess(newSession);
                                 }
-                                std::cout << proc->getName() << ": Finished printing x sequence." << std::endl;
-                            }).detach();
-                        } else {
-                            std::cout << "Session already exists.\n";
+                                std::system("CLS");
+                                std::cout << "Session '" << sessionName << "' created.\n\n";
+                                drawScreen(sessionName);
+                                executeScreen(sessionName);
+                                headerText();
+                                
+                            } else {
+                                std::cout << "Session already exists.\n";
+                            }
+                        }else{
+                            std::cout << "Invalid memory size. Must be a power of 2.\n";
                         }
                     } else if (option == "-r") {
                         Process *proc = findProcess(sessionName);
