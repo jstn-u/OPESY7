@@ -371,7 +371,7 @@ void headerText () {
                 std::string sessionName;
                 iss >> sessionName;
 
-                if ((option == "-r" || option == "-s") && !sessionName.empty()) {
+                if ((option == "-r" || option == "-s" || option == "-c") && !sessionName.empty()) {
                     if (option == "-s") {
                         Process *proc = findProcess(sessionName);
                         if (proc == nullptr) {
@@ -431,6 +431,8 @@ void headerText () {
                         } else {
                             std::cout << "No such session to resume.\n";
                         }
+                    } else if (option == "-c"){
+                        
                     }
                 } else if(option == "-ls"){
                     if(scheduler == "fcfs"){
