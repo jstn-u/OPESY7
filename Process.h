@@ -12,7 +12,7 @@
 
 struct var_map{
     uint16_t value;
-    int hex_addr;
+    std::string name;
 };
 
 class Instruction;
@@ -29,7 +29,7 @@ private:
     std::time_t startTime;
     std::string endTime;
     std::vector<PrintCommand*> commands;
-    std::map<var_map, uint16_t> variables; // symbol table for variables
+    std::map<int, var_map> variables; // symbol table for variables
     std::vector<Instruction*> instructions;
     int instructionPointer = 0;
     int sleepTicks = 0;
