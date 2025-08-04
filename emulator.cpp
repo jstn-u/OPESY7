@@ -13,6 +13,7 @@
 #include "PrintCommand.h"
 #include "FCFSScheduler.h"
 #include "RRScheduler.h"
+#include "MemoryManager.h"
 #include <queue>
 #include <condition_variable>
 #include <atomic>
@@ -439,6 +440,7 @@ void headerText () {
                         std::cout << outputBuffer.str();
                     }
                     else if(scheduler == "rr"){
+                        updateProcessMaps();
                         std::vector<Process*> running = rrScheduler->getRunningProcesses();
                         std::vector<Process*> finished = rrScheduler->getFinishedProcesses();
                         screenLS(running, finished);
@@ -482,11 +484,9 @@ void headerText () {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
                 } else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
-                    // Do NOT block here. Let the main loop continue.
                 }
                 else {
                     std::cout << "Scheduler is not running.\n";
@@ -503,6 +503,11 @@ void headerText () {
                 delete fcfsScheduler;
                 delete rrScheduler;
                 exit(0);
+            }
+            else if (command == "vmstat"){
+                if(rrScheduler && rrScheduler->isRunning()){
+                    rrScheduler->printVMStat();
+                }
             }
             else {
                 std::cout << "Not a valid command. Try again\n";

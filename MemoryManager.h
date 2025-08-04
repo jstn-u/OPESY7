@@ -19,6 +19,7 @@ struct Frame {
     std::string processName;
     int pageNumber;
     bool dirty;
+    int loadTime = 0;
 };
 
 // --- Memory Block (for external fragmentation & snapshotting) ---
@@ -36,8 +37,8 @@ public:
     MemoryManager(int totalMem, int memPerProc, int memPerFrame);
 
     // Core process memory management
-    void accessPage(const std::string& procName, int pageNumber);
-    void handlePageFault(const std::string& procName, int pageNumber);
+    std::string accessPage(const std::string& procName, int pageNumber);
+    std::string handlePageFault(const std::string& procName, int pageNumber);
     void freeProcessMemory(const std::string& procName);
 
     // Logging & stats
@@ -51,6 +52,12 @@ public:
     const std::vector<Frame>& getFrames() const { return frames; }
     void loadPageFromBackingStore(const std::string& procName, int pageNumber, int frameNumber);
     void evictPageToBackingStore(const std::string& procName, int pageNumber, int frameNumber);
+    int getUsedMemory() const;
+    
+    // Frame management
+    int findFreeFrame();
+    int selectVictimFrame();
+    
     /*
     bool allocate(const std::string& procName);
     void free(const std::string& procName);
@@ -59,11 +66,6 @@ public:
 
 private:
     mutable std::shared_mutex memoryMutex;
-
-    // Frame management
-    int findFreeFrame();
-    int selectVictimFrame();
-
     // Internal state
     int totalMem;
     int memPerProc;
@@ -71,6 +73,7 @@ private:
     int numFrames;
     int pagesPagedIn;
     int pagesPagedOut;
+    int currentTick = 0;
 
     std::vector<Frame> frames;
     std::unordered_map<std::string, std::vector<PageTableEntry>> pageTables;
