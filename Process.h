@@ -12,7 +12,7 @@
 
 struct var_map{
     uint16_t value;
-    std::string name;
+    std::string varname;
 };
 
 class Instruction;
@@ -62,6 +62,7 @@ public:
     int getMemSize() const { return memSize; }
     void setMemSize(int size) { memSize = size; }
     int getUsedMemory() const;
+    int getEndAddress() const;
 
     void setStatus(const std::string& newStatus) { status = newStatus; };
     void moveCurrentLine();
