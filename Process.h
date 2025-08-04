@@ -34,6 +34,7 @@ private:
     int instructionPointer = 0;
     int sleepTicks = 0;
     int memSize = 0; // memory allocated to this process (bytes)
+    std::vector<std::string> declaredVars; // <-- Add this line
 
 public:
     //added
@@ -90,5 +91,6 @@ public:
         }
         return instrs;
     }
+    std::vector<std::string>& getDeclaredVars() { return declaredVars; } // Optional getter
 };
 

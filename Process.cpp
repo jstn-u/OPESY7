@@ -112,11 +112,16 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
             int nextIndex = variables.size() + 1;
             std::string var = "var" + std::to_string(nextIndex);
             uint16_t value = getRandomInt(0, 65535);
-    
+
             // Add to variable map
             var_map entry = { value, var };
             variables[nextIndex] = entry;
-    
+
+            // Add to declaredVars if not already present
+            if (std::find(declaredVars.begin(), declaredVars.end(), var) == declaredVars.end()) {
+                declaredVars.push_back(var);
+            }
+
             msg = "DECLARE(" + var + ", " + std::to_string(value) + ")";
             instrBytes = 2;
         }
@@ -135,14 +140,36 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
         msg = "SLEEP(" + std::to_string(ticks) + ")";
         instrBytes = 1;
     } else if (type == "READ") {
-        std::string var = "var" + std::to_string(getRandomInt(1, 32));
-        int addr = 0x0000 + getRandomInt(0, 0x0FFF);
+        // Only generate READ if there are declared variables
+        if (declaredVars.empty()) {
+            instrBytes = 0;
+            return ""; // Skip generating this instruction
+        }
+        // Pick a random declared variable as destination
+        int varIdx = getRandomInt(0, declaredVars.size() - 1);
+        std::string var = declaredVars[varIdx];
+
+        int baseAddr = 0x0040;
+        int maxEvenAddr = baseAddr + memSize - 2; // Exclude the last even address
+        int addr = baseAddr;
+        if (maxEvenAddr >= baseAddr) {
+            int numEvenAddrs = ((maxEvenAddr - baseAddr) / 2) + 1;
+            int offset = getRandomInt(0, numEvenAddrs - 1) * 2;
+            addr = baseAddr + offset;
+        }
         std::stringstream ss;
         ss << "0x" << std::hex << addr;
         msg = "READ " + var + " " + ss.str();
         instrBytes = 3;
     } else if (type == "WRITE") {
-        int addr = 0x0000 + getRandomInt(0, 0x0FFF);
+        int baseAddr = 0x0040;
+        int maxEvenAddr = baseAddr + memSize - 2; // Exclude the last even address
+        int addr = baseAddr;
+        if (maxEvenAddr >= baseAddr) {
+            int numEvenAddrs = ((maxEvenAddr - baseAddr) / 2) + 1;
+            int offset = getRandomInt(0, numEvenAddrs - 1) * 2;
+            addr = baseAddr + offset;
+        }
         int value = getRandomInt(0, 65535);
         std::stringstream ss;
         ss << "0x" << std::hex << addr;
@@ -154,6 +181,7 @@ std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes
 }
 
 void Process::createPrintCommands(int totalIns) {
+    declaredVars.clear(); // <-- Add this line at the start
     if (name.find("auto_proc_") != 0) {
         int xVal = 0;
         for (int i = 0; i < totalIns; ++i) {
