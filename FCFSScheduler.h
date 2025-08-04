@@ -23,6 +23,11 @@ public:
     std::vector<Process*> getReadyProcesses();
     void startProcessGenerator(int batchFreq);
     void stopProcessGenerator();
+    uint32_t getCpuCycles();
+    void printVMStat();
+    void printProcessSMI();
+    int getActiveTicks() const { return activeTicks.load(); }
+    int getIdleTicks() const { return idleTicks.load(); }
     float getCpuUtilization();
     int getBusyCores();
     int getAvailableCores();
@@ -44,13 +49,11 @@ private:
     std::condition_variable cv;
     std::atomic<bool> running;
     std::set<int> availableCores;
-    std::atomic<bool> processGenActive{false};
+    MemoryManager* memoryManager;
     std::atomic<uint32_t> cpuCycles{0};
-    std::atomic<uint32_t> globalCpuCycles{0};
-    std::atomic<int> cpuTick{0};
-    std::thread processGeneratorThread;
-    int batchProcessFreq = 0;
-    int curr_id;
     std::atomic<int> activeTicks{0};
     std::atomic<int> idleTicks{0};
+    std::atomic<bool> processGenActive{false};
+    std::thread processGeneratorThread;
+    int batchProcessFreq = 0;
 };

@@ -505,11 +505,15 @@ void headerText () {
             else if (command == "vmstat"){
                 if(rrScheduler && rrScheduler->isRunning()){
                     rrScheduler->printVMStat();
+                } else if (fcfsScheduler && fcfsScheduler->isRunning()){
+                    fcfsScheduler->printVMStat();
                 }
             }
             else if (command == "process-smi"){
                 if(rrScheduler && rrScheduler->isRunning()){
                     rrScheduler->printProcessSMI();
+                } else if (fcfsScheduler && fcfsScheduler->isRunning()) { 
+                    fcfsScheduler->printProcessSMI();
                 } else {
                     std::cout << "No scheduler is running.\n";
                 }
