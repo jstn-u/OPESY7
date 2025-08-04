@@ -219,7 +219,12 @@ void RRScheduler::processGeneratorFunc() {
     while (processGenActive && running) {
         uint32_t cycle = getCpuCycles();
         if (batchProcessFreq > 0 && cycle % batchProcessFreq == 0 && lastCycle != cycle) {
-            int mem_for_proc = min_mem_per_proc + (std::rand() % (max_mem_per_proc - min_mem_per_proc + 1));
+            // Only allow mem_for_proc to be a power of 2 between min and max (inclusive)
+            int min_exp = static_cast<int>(std::log2(min_mem_per_proc));
+            int max_exp = static_cast<int>(std::log2(max_mem_per_proc));
+            int chosen_exp = min_exp + (std::rand() % (max_exp - min_exp + 1));
+            int mem_for_proc = 1 << chosen_exp;
+
             int numPages = ceil(mem_for_proc / mem_per_frame);
             int totalFrames = max_overall_mem / mem_per_frame;
             int usedFrames = 0;
