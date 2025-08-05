@@ -155,9 +155,10 @@ void RRScheduler::cpuWorker(int coreId) {
                     }
                 }
 
-                proc->executeCurrentCommand(assignedCore, proc->getName(), "");
+                //proc->executeCurrentCommand(assignedCore, proc->getName(), "");
+                proc->executeCurrentCommand2();
                 //(to catch 100% or 0% cpu utilization)
-                //std::this_thread::sleep_for(std::chrono::milliseconds(10)); 
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000)); 
                 proc->moveCurrentLine();
                 cpuCycles++;
                 activeTicks++;

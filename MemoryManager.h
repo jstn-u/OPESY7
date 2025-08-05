@@ -22,14 +22,6 @@ struct Frame {
     int loadTime = 0;
 };
 
-// --- Memory Block (for external fragmentation & snapshotting) ---
-struct MemoryBlock {
-    int start;
-    int size;
-    bool allocated;
-    std::string processName;
-};
-
 class Process;
 
 class MemoryManager {
@@ -78,8 +70,6 @@ private:
 
     std::vector<Frame> frames;
     std::unordered_map<std::string, std::vector<PageTableEntry>> pageTables;
-
-    std::vector<MemoryBlock> memory;
 
     const std::string backingStoreFile = "csopesy-backing_store.txt";
 };

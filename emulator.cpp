@@ -20,6 +20,111 @@
 #include <algorithm>
 #include <random> // Include for random number generation
 
+std::string trim(const std::string& str) {
+    size_t start = str.find_first_not_of(" \t\r\n");
+    size_t end = str.find_last_not_of(" \t\r\n");
+    if (start == std::string::npos) return "";
+    return str.substr(start, end - start + 1);
+}
+
+std::vector<std::string> tokenizeInput(const std::string& inputLine) {
+    std::vector<std::string> tokens;
+    std::string current;
+    bool inQuotes = false;
+    bool escapeNext = false;
+
+    for (size_t i = 0; i < inputLine.length(); ++i) {
+        char ch = inputLine[i];
+
+        if (escapeNext) {
+            current += ch;
+            escapeNext = false;
+        }
+        else if (ch == '\\') {
+            escapeNext = true;
+            current += ch;  // Keep the backslash for things like \"
+        }
+        else if (ch == '"') {
+            current += ch;
+            inQuotes = !inQuotes;
+        }
+        else if (std::isspace(ch) && !inQuotes) {
+            if (!current.empty()) {
+                tokens.push_back(current);
+                current.clear();
+            }
+        }
+        else {
+            current += ch;
+        }
+    }
+
+    if (!current.empty())
+        tokens.push_back(current);
+
+    return tokens;
+}
+
+std::vector<std::vector<std::string>> tokenizeCommands(const std::string& commandStr) {
+    std::vector<std::vector<std::string>> result;
+
+    // Remove outer quotes if present
+    std::string inner = commandStr;
+    if (!inner.empty() && (inner.front() == '"' || inner.front() == '\'')) {
+        inner = inner.substr(1, inner.size() - 2);
+    }
+
+    std::stringstream ss(inner);
+    std::string command;
+
+    while (std::getline(ss, command, ';')) {
+        command = trim(command);
+        if (command.empty()) continue;
+
+        std::vector<std::string> tokens;
+
+        // Handle PRINT("text" + varName)
+        if (command.rfind("PRINT(", 0) == 0 && command.back() == ')') {
+            std::string inside = command.substr(6, command.length() - 7); // Inside PRINT()
+
+            // Split by '+', preserving string parts
+            size_t plusPos = inside.find('+');
+            if (plusPos != std::string::npos) {
+                std::string left = trim(inside.substr(0, plusPos));
+                std::string right = trim(inside.substr(plusPos + 1));
+
+                // Strip quotes from left side if present
+                if (!left.empty() &&
+                    ((left.front() == '"' && left.back() == '"') ||
+                     (left.front() == '\'' && left.back() == '\''))) {
+                    left = left.substr(1, left.size() - 2);
+                }
+
+                tokens.push_back("PRINT");
+                tokens.push_back(left);
+                tokens.push_back("+");
+                tokens.push_back(right);
+            } else {
+                // Just a literal or var inside PRINT
+                tokens.push_back("PRINT");
+                tokens.push_back(trim(inside));
+            }
+        }
+        else {
+            //For all other commands, split by space
+            std::stringstream lineStream(command);
+            std::string word;
+            while (lineStream >> word) {
+                tokens.push_back(word);
+            }
+        }
+
+        result.push_back(tokens);
+    }
+
+    return result;
+}
+
 // Utility function to generate a random integer in [min, max]
 int randInt(int min, int max) {
     return min + (std::rand() % (max - min + 1));
@@ -138,6 +243,12 @@ void drawScreen(const std::string& processName) {
 }
 
 void executeScreen(const std::string& processName){
+    if(scheduler == "fcfs" && !fcfsScheduler->isRunning()) {
+        fcfsScheduler->start();
+    } else if(scheduler == "rr" && !rrScheduler->isRunning()) {
+        rrScheduler->start();
+    }
+
     Process* proc = findProcess(processName);
     std::string input;
     
@@ -155,6 +266,7 @@ void executeScreen(const std::string& processName){
             for(const auto& log : logs) {
                 std::cout << log << "\n";
             }
+            proc->printLog();
         }
         else {
             if (input.substr(0, 6) == "PRINT(" && input.back() == ')') {
@@ -323,6 +435,28 @@ void initScreen(){
         "Type initialize to start the emulator.\n";
 }
 
+bool isValidMemorySize(int size) {
+    return size >= 64 && size <= 65536 && (size & (size - 1)) == 0;
+}
+
+std::vector<std::string> parseInstructions(const std::string& input) {
+    std::vector<std::string> result;
+    std::stringstream ss(input);
+    std::string instr;
+
+    while (std::getline(ss, instr, ';')) {
+        instr.erase(instr.begin(), std::find_if(instr.begin(), instr.end(), [](unsigned char ch) {
+            return !std::isspace(ch);
+        }));
+        instr.erase(std::find_if(instr.rbegin(), instr.rend(), [](unsigned char ch) {
+            return !std::isspace(ch);
+        }).base(), instr.end());
+
+        if (!instr.empty()) result.push_back(instr);
+    }
+    return result;
+}
+
 void headerText () {
     while(true) {
         std::cout<< R"(
@@ -341,14 +475,14 @@ void headerText () {
         "-'screen -r <name>' to resume a session\n"
         "-'screen -ls' to view all attached or detached sessions\n"
         "-'screen -d <name>' to detach a running session\n"
-        "-'scheduler-test'\n"
+        "-'scheduler-start'\n"
         "-'scheduler-stop'\n"
         "-'report-util'\n"
         "-'clear' to clear the screen\n"
         "-'exit' to quit\n"
         "\n";
 
-        std::cout << min_mem_per_proc << " " << max_mem_per_proc << "\n";
+        //std::cout << min_mem_per_proc << " " << max_mem_per_proc << "\n";
 
         while(true) {
             std:: string input;
@@ -377,7 +511,7 @@ void headerText () {
                         iss >> procSize;
                         int memSize = std::stoi(procSize);
 
-                        if((memSize & (memSize - 1)) == 0){
+                        if(isValidMemorySize(memSize)) {
                             std::cout << "Memory is valid.\n";
 
                             Process *proc = findProcess(sessionName);
@@ -396,18 +530,19 @@ void headerText () {
 
                                 newSession->createPrintCommands(numInstructions);
                                 ++curr_id;
+                                
                                 // Add to scheduler
                                 if(scheduler == "fcfs"){
                                     fcfsScheduler->addProcess(newSession);
                                 }else if(scheduler == "rr"){
                                     rrScheduler->addProcess(newSession);
                                 }
+
                                 std::system("CLS");
                                 std::cout << "Session '" << sessionName << "' created.\n\n";
                                 drawScreen(sessionName);
                                 executeScreen(sessionName);
                                 headerText();
-                                
                             } else {
                                 std::cout << "Session already exists.\n";
                             }
@@ -418,9 +553,6 @@ void headerText () {
                         Process *proc = findProcess(sessionName);
                         if (proc != nullptr) {
                             std::system("CLS");
-                            if (proc->getStatus() == "Detached"){
-                                proc->setStatus("Attached");
-                            }
                             drawScreen(sessionName);
                             executeScreen(sessionName);
                             headerText();
@@ -428,7 +560,81 @@ void headerText () {
                             std::cout << "No such session to resume.\n";
                         }
                     } else if (option == "-c"){
-                        
+                        std::string procSize;
+                        /* iss >> procSize;
+                        int memSize = std::stoi(procSize); */
+                        std::vector<std::string> tokens = tokenizeInput(input);
+                        std::vector<std::vector<std::string>> commandTokens = tokenizeCommands(tokens[3]);
+
+                        /*Process(int pid, const std::string& name, int currentLine, 
+                        const std::string& timestamp, const std::string& status, 
+                        int memSize, std::vector<std::vector<std::string>> commandS); */
+
+                        Process* newSession = new Process(
+                            curr_id,
+                            sessionName,
+                            0,
+                            getCurrentTimestamp(),
+                            "Ready",
+                            512,
+                            commandTokens
+                        );
+
+                        // Add to scheduler
+                        if(scheduler == "fcfs"){
+                            fcfsScheduler->addProcess(newSession);
+                        }else if(scheduler == "rr"){
+                            rrScheduler->addProcess(newSession);
+                        }
+
+                        std::system("CLS");
+                        std::cout << "Session '" << sessionName << "' created.\n\n";
+                        drawScreen(sessionName);
+                        executeScreen(sessionName);
+                        headerText();
+
+                        /* for (int i = 0; i < commandTokens.size(); ++i) {
+                            const std::vector<std::string>& commandPart = commandTokens[i];
+                            std::cout << "Command Part " << i + 1 << ": ";
+                            for (const std::string& token : commandPart) {
+                                std::cout << "[" << token << "] ";
+                            }
+                            std::cout << "\n";
+                        } */
+
+                        /* std::string rawInstructions;
+                        std::getline(iss, rawInstructions);
+
+                        rawInstructions.erase(0, rawInstructions.find_first_not_of(" \t"));
+                        if (!rawInstructions.empty() && rawInstructions.front() == '"') rawInstructions.erase(0, 1);
+                        if (!rawInstructions.empty() && rawInstructions.back() == '"') rawInstructions.pop_back();
+
+                        if(!isValidMemorySize(memSize)) {
+                            std::cout << "invalid memory allocation\n";
+                        }else{
+                            std::vector<std::string> instructions = parseInstructions(rawInstructions);
+                            if (instructions.size() < 1 || instructions.size() > 50) {
+                                std::cout << "invalid command\n";
+                            }else{
+                                // Debugging
+                                for(const auto& instr : instructions) {
+                                    std::cout << "Instruction: " << instr << "\n";
+                                }
+
+                                // Create process with parsed instructions
+                                Process* newSession = new Process(
+                                    curr_id,
+                                    sessionName,
+                                    0,
+                                    instructions.size(),
+                                    getCurrentTimestamp(),
+                                    "Ready",
+                                    memSize
+                                );
+
+                                // Add instructions to the process here
+                            }
+                        } */
                     }
                 } else if(option == "-ls"){
                     if(scheduler == "fcfs"){
@@ -468,12 +674,21 @@ void headerText () {
                 if (fcfsScheduler && !fcfsScheduler->isRunning()) {
                     fcfsScheduler->start();
                     fcfsScheduler->startProcessGenerator(batch_process_freq);
-                    std::cout << "FCFS Scheduler started.\n";
+                    std::cout << "FCFS process generator started.\n";
                 } else if(rrScheduler && !rrScheduler->isRunning()) {
                     rrScheduler->start();
                     rrScheduler->startProcessGenerator(batch_process_freq);
-                    std::cout << "RR Scheduler started.\n";
+                    std::cout << "RR process generator started.\n";
                 }
+
+                if(fcfsScheduler && fcfsScheduler->isRunning()) {
+                    fcfsScheduler->startProcessGenerator(batch_process_freq);
+                    std::cout << "FCFS process generator started.\n";
+                } else if(rrScheduler && rrScheduler->isRunning()) {
+                    rrScheduler->startProcessGenerator(batch_process_freq);
+                    std::cout << "RR process generator started.\n";
+                }
+
                 else {
                     std::cout << "Scheduler is already running.\n";
                 }
@@ -481,9 +696,11 @@ void headerText () {
             else if(command == "scheduler-stop") {
                 if (fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->stopProcessGenerator();
+                    fcfsScheduler->stop();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
                 } else if(rrScheduler && rrScheduler->isRunning()) {
                     rrScheduler->stopProcessGenerator();
+                    rrScheduler->stop();
                     std::cout << "Process generator stopped. All existing processes will be finished.\n";
                 }
                 else {
@@ -576,6 +793,7 @@ int main() {
     }
     
     std::system("CLS");
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     headerText();
 
     /* Week 6 HW Commands */

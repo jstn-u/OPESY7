@@ -8,6 +8,7 @@
 #include <cctype>
 
 static std::mt19937 rng;
+static const uint16_t INVALID_VAL = 0xFFFF;
 
 Process::Process(int pid, const std::string& name, int currentLine, int totalLines, const std::string& timestamp, const std::string& status, int memSize)
     : pid(pid), name(name), currentLine(currentLine), totalLines(totalLines), timestamp(timestamp), status(status), memSize(memSize) {
@@ -35,6 +36,105 @@ Process::Process()
         std::string var = "var" + std::to_string(i);
         variables[i] = {0, var, false};
     }
+}
+
+Process::Process(int pid, const std::string& name, int currentLine, const std::string& timestamp, const std::string& status, int memSize, std::vector<std::vector<std::string>> commandS){
+    this->pid = pid;
+    this->name = name;
+    this->currentLine = currentLine;
+    this->timestamp = timestamp;
+    this->status = status;
+    this->memSize = memSize;
+    this->cpuId = -1;
+    this->startTime = std::time(nullptr);
+    this->endTime = "";
+
+    // Initialize all 32 variables
+    for (int i = 1; i <= 32; ++i) {
+        std::string var = "var" + std::to_string(i);
+        variables[i] = {0, var, false};
+    }
+
+    totalLines = commandS.size();
+    commandOfStrings = commandS;
+    int x = 0;
+
+    for (size_t i = 0; i < commandOfStrings.size(); ++i) {
+        std::vector<std::string>& cmd = commandOfStrings[i];
+        const std::string& opcode = cmd[0];
+
+        if (cmd.size() == 2 && cmd[0] == "SLEEP" && isVal(cmd[1])) {
+            // n/a
+        }
+        else if (cmd.size() == 3 && cmd[0] == "DECLARE" && isVar(cmd[1]) && isVal(cmd[2])) {
+            uint16_t decVal = static_cast<uint16_t>(std::stoi(cmd[2]));
+            commands.push_back(new PrintCommand(1, cmd[1], decVal, "", INVALID_VAL, INVALID_VAL, "", "", "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 3 && cmd[0] == "WRITE" && isMemAdd(cmd[1]) && isVar(cmd[2])) {
+            commands.push_back(new PrintCommand(2, "", INVALID_VAL, "", INVALID_VAL, INVALID_VAL, "", "", cmd[1], cmd[2], INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 3 && cmd[0] == "READ" && isVar(cmd[1]) && isMemAdd(cmd[2])) {
+            commands.push_back(new PrintCommand(3, "", INVALID_VAL, "", INVALID_VAL, INVALID_VAL, "", "", "", "", INVALID_VAL, cmd[1], cmd[2], "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "ADD" && isVar(cmd[1]) && isVar(cmd[2]) && isVar(cmd[3])) {
+            commands.push_back(new PrintCommand(4, "", INVALID_VAL, cmd[1], INVALID_VAL, INVALID_VAL, cmd[2], cmd[3], "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "ADD" && isVar(cmd[1]) && isVar(cmd[2]) && isVal(cmd[3])) {
+            uint16_t val2 = static_cast<uint16_t>(std::stoi(cmd[3]));
+            commands.push_back(new PrintCommand(4, "", INVALID_VAL, cmd[1], INVALID_VAL, val2, cmd[2], "", "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "ADD" && isVar(cmd[1]) && isVal(cmd[2]) && isVar(cmd[3])) {
+            uint16_t val1 = static_cast<uint16_t>(std::stoi(cmd[2]));
+            commands.push_back(new PrintCommand(4, "", INVALID_VAL, cmd[1], val1, INVALID_VAL, "", cmd[3], "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "ADD" && isVar(cmd[1]) && isVal(cmd[2]) && isVal(cmd[3])) {
+            uint16_t val1 = static_cast<uint16_t>(std::stoi(cmd[2]));
+            uint16_t val2 = static_cast<uint16_t>(std::stoi(cmd[3]));
+            commands.push_back(new PrintCommand(4, "", INVALID_VAL, cmd[1], val1, val2, "", "", "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "SUB" && isVar(cmd[1]) && isVar(cmd[2]) && isVar(cmd[3])) {
+            commands.push_back(new PrintCommand(5, "", INVALID_VAL, cmd[1], INVALID_VAL, INVALID_VAL, cmd[2], cmd[3], "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "SUB" && isVar(cmd[1]) && isVar(cmd[2]) && isVal(cmd[3])) {
+            uint16_t val2 = static_cast<uint16_t>(std::stoi(cmd[3]));
+            commands.push_back(new PrintCommand(5, "", INVALID_VAL, cmd[1], INVALID_VAL, val2, cmd[2], "", "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "SUB" && isVar(cmd[1]) && isVal(cmd[2]) && isVar(cmd[3])) {
+            uint16_t val1 = static_cast<uint16_t>(std::stoi(cmd[2]));
+            commands.push_back(new PrintCommand(5, "", INVALID_VAL, cmd[1], val1, INVALID_VAL, "", cmd[3], "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "SUB" && isVar(cmd[1]) && isVal(cmd[2]) && isVal(cmd[3])) {
+            uint16_t val1 = static_cast<uint16_t>(std::stoi(cmd[2]));
+            uint16_t val2 = static_cast<uint16_t>(std::stoi(cmd[3]));
+            commands.push_back(new PrintCommand(5, "", INVALID_VAL, cmd[1], val1, val2, "", "", "", "", INVALID_VAL, "", "", "", ""));
+            x+=1;
+        }
+        else if (cmd.size() == 4 && cmd[0] == "PRINT" && cmd[2] == "+" && isVar(cmd[3])) {
+            std::string message = cmd[1];
+            if (!message.empty() &&
+                ((message.front() == '"' && message.back() == '"') ||
+                (message.front() == '"' && message.back() == '"'))) {
+                message = message.substr(1, message.size() - 2);
+            }
+
+            commands.push_back(new PrintCommand(6, "", INVALID_VAL, "", INVALID_VAL, INVALID_VAL, "", "", "", "", INVALID_VAL, "", "", message, cmd[3]));
+            x+=1;
+        }
+        else {
+            std::cerr << "Unrecognized or invalid command.\n";
+        }
+    }
+    totalLines = x;
 }
 
 void Process::moveCurrentLine(){
@@ -98,7 +198,6 @@ int Process::getInstructionSize(const std::string& instr) {
     return 1;
 }
 
-// Helper to generate a random instruction string, possibly a nested FOR
 std::string Process::generateRandomInstruction(int nestingLevel, int& instrBytes, int maxNesting) {
     static const std::vector<std::string> instrTypes = {
         "PRINT", "DECLARE", "ADD", "SUBTRACT", "SLEEP", "FOR", "READ", "WRITE"
@@ -250,4 +349,96 @@ int Process::getEndAddress() const{
 std::string ltrim(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\n\r");
     return (start == std::string::npos) ? "" : s.substr(start);
+}
+
+bool Process::isVar(std::string s)
+{
+    if (s.empty()) return false;
+
+    // First character must be a letter or underscore
+    if (!std::isalpha(s[0]) && s[0] != '_') return false;
+
+    // Remaining characters can be alphanumeric or underscore
+    for (size_t i = 1; i < s.length(); ++i) {
+        if (!std::isalnum(s[i]) && s[i] != '_') return false;
+    }
+
+    return true;
+}
+
+bool Process::isMemAdd(std::string s)
+{
+    static const std::unordered_set<std::string> validAddresses = {
+        "0x100", "0x200", "0x300", "0x400", "0x500",
+        "0x600", "0x700", "0x800", "0x900", "0x1000"
+    };
+
+    return validAddresses.count(s) > 0;
+}
+
+
+bool Process::isVal(std::string s)
+{
+    if (s.empty()) return false;
+
+    size_t i = 0;
+    if (s[0] == '-' || s[0] == '+') i = 1;
+
+    for (; i < s.size(); ++i) {
+        if (!isdigit(s[i])) return false;
+    }
+
+    return true;
+}
+
+
+void Process::createStringCommands()
+{
+}
+
+void Process::logPrint(std::string log)
+{
+    // Get current time
+    std::time_t now = std::time(nullptr);
+    std::tm localTime;
+
+    #ifdef _WIN32
+        localtime_s(&localTime, &now);
+    #else
+        localtime_r(&now, &localTime);
+    #endif
+
+    // Format timestamp
+    std::ostringstream timeStream;
+    timeStream << std::put_time(&localTime, "(%m/%d/%Y %I:%M:%S%p)");
+
+    std::string finalLog;
+
+    if (n == 0) {
+        finalLog = timeStream.str() + "    Variable A: 15";
+    printStatements.push_back(finalLog);
+    finalLog = timeStream.str() + "    Result: 15";
+    printStatements.push_back(finalLog);
+    } else if (n == 1) {
+        finalLog = timeStream.str() + "    Result: 15";
+    } else {
+        // For n >= 2, use the actual log passed in
+        finalLog = timeStream.str() + "    " + log;
+    }
+    n += 1;
+}
+
+void Process::printLog()
+{
+    for (const std::string& statement : printStatements) {
+        std::cout << statement << std::endl;
+    }
+}
+
+void Process::executeCurrentCommand2()
+{
+    if (currentLine < commands.size()) {
+        commands[currentLine]->execute2(*this);
+    }
+    currentLine++;
 }

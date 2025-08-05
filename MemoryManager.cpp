@@ -232,14 +232,6 @@ void MemoryManager::printFrames() {
     }
 }
 
-int MemoryManager::externalFragmentation() {
-    int frag = 0;
-    for (const auto& block : memory) {
-        if (!block.allocated) frag += block.size;
-    }
-    return frag;
-}
-
 int MemoryManager::getUsedMemory() const {
     std::shared_lock lock(memoryMutex);
     int usedFrames = 0;
