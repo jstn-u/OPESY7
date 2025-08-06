@@ -679,9 +679,7 @@ void headerText () {
                     rrScheduler->start();
                     rrScheduler->startProcessGenerator(batch_process_freq);
                     std::cout << "RR process generator started.\n";
-                }
-
-                if(fcfsScheduler && fcfsScheduler->isRunning()) {
+                }else if(fcfsScheduler && fcfsScheduler->isRunning()) {
                     fcfsScheduler->startProcessGenerator(batch_process_freq);
                     std::cout << "FCFS process generator started.\n";
                 } else if(rrScheduler && rrScheduler->isRunning()) {
